@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial IoT Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e24;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background-color: #2a2a35;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            width: 350px;
+            text-align: center;
+            border-top: 5px solid #4caf50;
+        }
+        h2 { margin-top: 0; color: #aaaaaa; font-size: 1.2rem; text-transform: uppercase; }
+        .machine-name { font-size: 1.8rem; font-weight: bold; margin: 10px 0; color: #fff; }
+        .status-badge {
+            background-color: #4caf50;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #3a3a45;
+            padding-bottom: 8px;
+        }
+        .metric span { color: #888888; }
+        .metric strong { color: #00adb5; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Live Shop Floor Data</h2>
+        <div class="machine-name" id="machine-id">Loading...</div>
+        <div class="status-badge" id="status">---</div>
+        
+        <div class="metric">
+            <span>Speed:</span>
+            <strong id="rpm">0 RPM</strong>
+        </div>
+        <div class="metric">
+            <span>Temp:</span>
+            <strong id="temp">0.0 °C</strong>
+        </div>
+        <div class="metric">
+            <span>Vibration:</span>
+            <strong id="vibration">0.0 mm/s</strong>
+        </div>
+    </div>
+
+    <script>
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/machine-status');
+                const data = await response.json();
+                
+                // Mapping data elements to HTML elements
+                document.getElementById('machine-id').innerText = data.machineId;
+                document.getElementById('status').innerText = data.status;
+                document.getElementById('rpm').innerText = data.rpm + ' RPM';
+                document.getElementById('temp').innerText = data.temperature + ' °C';
+                
+                // FIXED: Capitalized 'innerText' properly
+                document.getElementById('vibration').innerText = data.vibration + ' mm/s';
+                
+            } catch (error) {
+                console.error("Error updating dashboard:", error);
+            }
+        }
+
+        // Run the update when page loads immediately
+        updateDashboard();
+        
+        // FIXED: Lowercase 'u' so it perfectly references our function, repeating every 2 seconds
+        setInterval(updateDashboard, 2000);
+    </script>
+</body>
+</html>
