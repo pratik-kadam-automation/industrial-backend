@@ -1,24 +1,24 @@
+require('dotenv').config();
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
 const dbClient = new Client({
-    host: 'local-db',
-    port: 5432,
-    user: 'pratik',
-    password: 'mysecretpassword',
-    database: 'factory_data',
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
 });
 
-// NEW: This function automatically retries if the database isn't ready
+const VPN_STATUS_LOG = process.env.VPN_STATUS_LOG || '/etc/openvpn/server/openvpn-status.log';
+
 function connectWithRetry() {
     console.log('Attempting to connect to PostgreSQL database...');
-    
     dbClient.connect()
         .then(() => {
             console.log('Successfully connected to the PostgreSQL database!');
-            // Create table once connected
             return dbClient.query(`
                 CREATE TABLE IF NOT EXISTS production_logs (
                     id SERIAL PRIMARY KEY,
@@ -33,18 +33,41 @@ function connectWithRetry() {
         })
         .catch(err => {
             console.error('Database connection failed. Retrying in 3 seconds...', err.message);
-            // Wait 3 seconds, then call this function again
             setTimeout(connectWithRetry, 3000);
         });
 }
 
-// Start the retry connection loop
 connectWithRetry();
+
+function parseVpnStatus() {
+    return new Promise((resolve, reject) => {
+        fs.readFile(VPN_STATUS_LOG, 'utf8', (err, data) => {
+            if (err) return reject(err);
+            const lines = data.split('\n');
+            const clients = [];
+            for (const line of lines) {
+                if (!line.startsWith('CLIENT_LIST,')) continue;
+                const parts = line.split(',');
+                const [, commonName, realAddress, virtualAddress, , bytesReceived,
+                    bytesSent, connectedSince] = parts;
+                if (commonName === 'UNDEF') continue;
+                clients.push({
+                    name: commonName,
+                    realAddress,
+                    vpnIp: virtualAddress || null,
+                    connectedSince,
+                    bytesReceived: Number(bytesReceived),
+                    bytesSent: Number(bytesSent),
+                });
+            }
+            resolve(clients);
+        });
+    });
+}
 
 const server = http.createServer(async (req, res) => {
     if (req.url === '/api/machine-status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        
         const machineStatus = {
             machineId: "Straightener_D120",
             status: "Running",
@@ -52,8 +75,6 @@ const server = http.createServer(async (req, res) => {
             temperature: 68.5,
             vibration: 2.4
         };
-
-        // Save reading to database if connected
         try {
             await dbClient.query(
                 'INSERT INTO production_logs (machine_id, status, rpm, temperature, vibration) VALUES ($1, $2, $3, $4, $5)',
@@ -63,10 +84,25 @@ const server = http.createServer(async (req, res) => {
         } catch (err) {
             console.error("Could not write to DB (maybe still connecting):", err.message);
         }
-
         return res.end(JSON.stringify({ ...machineStatus, timestamp: new Date() }));
-    } 
-    
+    }
+
+    if (req.url === '/api/vpn/sites') {
+        try {
+            const clients = await parseVpnStatus();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({
+                connectedCount: clients.length,
+                sites: clients,
+                checkedAt: new Date(),
+            }));
+        } catch (err) {
+            console.error('Could not read VPN status log:', err.message);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Could not read VPN status log', detail: err.message }));
+        }
+    }
+
     if (req.url === '/' || req.url === '/index.html') {
         fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
             if (err) { res.writeHead(500); return res.end('Error loading index.html'); }
