@@ -14,10 +14,12 @@ const dbClient = new Client({
 
 const VPN_STATUS_LOG = process.env.VPN_STATUS_LOG || '/etc/openvpn/server/openvpn-status.log';
 
-function connectWithRetry() {
-    console.log('Attempting to connect to PostgreSQL database...');
+let dbAvailable = false;
+
+function connectToDatabase() {
     dbClient.connect()
         .then(() => {
+            dbAvailable = true;
             console.log('Successfully connected to the PostgreSQL database!');
             return dbClient.query(`
                 CREATE TABLE IF NOT EXISTS production_logs (
@@ -32,12 +34,11 @@ function connectWithRetry() {
             `);
         })
         .catch(err => {
-            console.error('Database connection failed. Retrying in 3 seconds...', err.message);
-            setTimeout(connectWithRetry, 3000);
+            console.warn('Database not available, continuing without DB logging:', err.message);
         });
 }
 
-connectWithRetry();
+connectToDatabase();
 
 function parseVpnStatus() {
     return new Promise((resolve, reject) => {
@@ -75,14 +76,16 @@ const server = http.createServer(async (req, res) => {
             temperature: 68.5,
             vibration: 2.4
         };
-        try {
-            await dbClient.query(
-                'INSERT INTO production_logs (machine_id, status, rpm, temperature, vibration) VALUES ($1, $2, $3, $4, $5)',
-                [machineStatus.machineId, machineStatus.status, machineStatus.rpm, machineStatus.temperature, machineStatus.vibration]
-            );
-            console.log("Logged a new reading to the database!");
-        } catch (err) {
-            console.error("Could not write to DB (maybe still connecting):", err.message);
+        if (dbAvailable) {
+            try {
+                await dbClient.query(
+                    'INSERT INTO production_logs (machine_id, status, rpm, temperature, vibration) VALUES ($1, $2, $3, $4, $5)',
+                    [machineStatus.machineId, machineStatus.status, machineStatus.rpm, machineStatus.temperature, machineStatus.vibration]
+                );
+                console.log("Logged a new reading to the database!");
+            } catch (err) {
+                console.error("Could not write to DB:", err.message);
+            }
         }
         return res.end(JSON.stringify({ ...machineStatus, timestamp: new Date() }));
     }
