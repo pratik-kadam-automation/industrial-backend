@@ -173,18 +173,4 @@ const server = http.createServer(async (req, res) => {
 server.listen(3000, () => {
     console.log('Full-Stack Database engine live on port 3000!');
 });
-        }
-    }
-
-    if (req.url === '/' || req.url === '/index.html') {
-        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
-            if (err) { res.writeHead(500); return res.end('Error loading index.html'); }
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(content);
-        });
-    }
-});
-
-server.listen(3000, () => {
-    console.log('Full-Stack Database engine live on port 3000!');
 });
