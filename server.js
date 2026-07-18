@@ -14,7 +14,12 @@ const dbClient = new Client({
 
 const VPN_STATUS_LOG = process.env.VPN_STATUS_LOG || '/etc/openvpn/server/openvpn-status.log';
 
+// Simple shared secret so random people on the internet can't post fake SAP reports.
+// Set SAP_REPORT_TOKEN in .env and give the same value to the laptop script.
+const SAP_REPORT_TOKEN = process.env.SAP_REPORT_TOKEN || 'change-me';
+
 let dbAvailable = false;
+let lastSapReport = null; // in-memory store, resets on restart
 
 function connectToDatabase() {
     dbClient.connect()
@@ -66,6 +71,22 @@ function parseVpnStatus() {
     });
 }
 
+// Reads the raw body of a POST request and parses it as JSON.
+function readJsonBody(req) {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+            try {
+                resolve(body ? JSON.parse(body) : {});
+            } catch (err) {
+                reject(err);
+            }
+        });
+        req.on('error', reject);
+    });
+}
+
 const server = http.createServer(async (req, res) => {
     if (req.url === '/api/machine-status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -103,6 +124,55 @@ const server = http.createServer(async (req, res) => {
             console.error('Could not read VPN status log:', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: 'Could not read VPN status log', detail: err.message }));
+        }
+    }
+
+    // Laptop script POSTs its SAP sync status here periodically.
+    if (req.url === '/api/sap/report' && req.method === 'POST') {
+        try {
+            const body = await readJsonBody(req);
+
+            if (body.token !== SAP_REPORT_TOKEN) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'Invalid token' }));
+            }
+
+            lastSapReport = {
+                pendingCount: body.pendingCount ?? null,
+                errorCount: body.errorCount ?? null,
+                lastFileProcessed: body.lastFileProcessed ?? null,
+                reportedAt: new Date(),
+            };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ received: true }));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+        }
+    }
+
+    // Dashboard reads the latest SAP status here.
+    if (req.url === '/api/sap/sync-status' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        if (!lastSapReport) {
+            return res.end(JSON.stringify({ status: 'no_reports_yet' }));
+        }
+        return res.end(JSON.stringify(lastSapReport));
+    }
+
+    if (req.url === '/' || req.url === '/index.html') {
+        fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
+            if (err) { res.writeHead(500); return res.end('Error loading index.html'); }
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(content);
+        });
+    }
+});
+
+server.listen(3000, () => {
+    console.log('Full-Stack Database engine live on port 3000!');
+});
         }
     }
 
