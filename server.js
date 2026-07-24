@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 const { startMqttClient, getLatestMachineData } = require('./mqtt-machine');
+const { startProductionTracker } = require('./productionTracker');
 const dbClient = new Client({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
@@ -34,6 +35,14 @@ function connectToDatabase() {
                     logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             `);
+        })
+        .then(() => {
+            // Production tracker intentionally PAUSED for now — holding
+            // off on continuous DB writes until we've watched actual
+            // storage growth and tuned the logic with a clear head.
+            // Re-enable by uncommenting the line below.
+            // startProductionTracker(dbClient, 'venus');
+            console.log('Production tracker is paused (not writing data) — uncomment in server.js to re-enable.');
         })
         .catch(err => {
             console.warn('Database not available, continuing without DB logging:', err.message);
@@ -209,6 +218,59 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/machine-status/demo') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getLatestMachineData()));
+    }
+    if (req.url.startsWith('/api/production/current')) {
+        try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            const machineId = urlObj.searchParams.get('machineId') || 'venus';
+            const statusRes = await dbClient.query(
+                `SELECT status, started_at FROM machine_status_events
+                 WHERE machine_id = $1 AND ended_at IS NULL
+                 ORDER BY started_at DESC LIMIT 1`,
+                [machineId]
+            );
+            const batchRes = await dbClient.query(
+                `SELECT bar_diameter, bar_count, started_at FROM production_batches
+                 WHERE machine_id = $1 AND ended_at IS NULL
+                 ORDER BY started_at DESC LIMIT 1`,
+                [machineId]
+            );
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({
+                currentStatus: statusRes.rows[0] || null,
+                currentBatch: batchRes.rows[0] || null,
+            }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'DB query failed', detail: err.message }));
+        }
+    }
+    if (req.url.startsWith('/api/production/history')) {
+        try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            const machineId = urlObj.searchParams.get('machineId') || 'venus';
+            const hours = Number(urlObj.searchParams.get('hours')) || 24;
+            const statusEvents = await dbClient.query(
+                `SELECT status, started_at, ended_at, duration_seconds FROM machine_status_events
+                 WHERE machine_id = $1 AND started_at > NOW() - ($2 || ' hours')::interval
+                 ORDER BY started_at ASC`,
+                [machineId, hours]
+            );
+            const batches = await dbClient.query(
+                `SELECT bar_diameter, bar_count, started_at, ended_at FROM production_batches
+                 WHERE machine_id = $1 AND started_at > NOW() - ($2 || ' hours')::interval
+                 ORDER BY started_at ASC`,
+                [machineId, hours]
+            );
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({
+                statusEvents: statusEvents.rows,
+                batches: batches.rows,
+            }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'DB query failed', detail: err.message }));
+        }
     }
     if (req.url === '/' || req.url === '/index.html') {
         fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
