@@ -1,98 +1,1212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Industrial IoT Dashboard</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e24;
-            color: #fff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .card {
-            background-color: #2a2a35;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-            width: 350px;
-            text-align: center;
-            border-top: 5px solid #4caf50;
-        }
-        h2 { margin-top: 0; color: #aaaaaa; font-size: 1.2rem; text-transform: uppercase; }
-        .machine-name { font-size: 1.8rem; font-weight: bold; margin: 10px 0; color: #fff; }
-        .status-badge {
-            background-color: #4caf50;
-            color: white;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            font-size: 1.1rem;
-            border-bottom: 1px solid #3a3a45;
-            padding-bottom: 8px;
-        }
-        .metric span { color: #888888; }
-        .metric strong { color: #00adb5; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eLT Edge — IIoT Fleet Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D10;
+    --panel: #12171C;
+    --panel-2: #161C22;
+    --border: #1C242C;
+    --text: #DCE6EE;
+    --muted: #7C8894;
+    --cyan: #4FD1C5;
+    --amber: #F2B84B;
+    --coral: #EF6461;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 8px 20px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .brand-mark {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .brand-name { font-size: 14px; font-weight: 600; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, color 0.12s;
+  }
+  .nav-item:hover { background: var(--panel-2); color: var(--text); }
+  .nav-item.active { background: rgba(79,209,197,0.12); color: var(--cyan); }
+  .nav-item.disabled { opacity: 0.35; cursor: not-allowed; }
+  .nav-item.disabled:hover { background: none; color: var(--muted); }
+  .nav-icon { width: 16px; text-align: center; font-family: var(--mono); font-size: 13px; }
+  .nav-soon {
+    margin-left: auto;
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ---------- Main ---------- */
+  .main { flex: 1; padding: 24px 28px; min-width: 0; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .topbar h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .topbar .sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .clock {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .refresh-btn {
+    background: var(--cyan);
+    color: #06110F;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s;
+  }
+  .refresh-btn:active { transform: rotate(180deg); }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 0 0 rgba(79,209,197,0.6);
+    animation: pulse 2s infinite;
+  }
+  .dot.down { background: var(--coral); box-shadow: 0 0 0 0 rgba(239,100,97,0.6); animation: none; }
+  .dot.warn { background: var(--amber); box-shadow: 0 0 0 0 rgba(242,184,75,0.6); animation: pulse-amber 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(79,209,197,0.5); }
+    70% { box-shadow: 0 0 0 7px rgba(79,209,197,0); }
+    100% { box-shadow: 0 0 0 0 rgba(79,209,197,0); }
+  }
+  @keyframes pulse-amber {
+    0% { box-shadow: 0 0 0 0 rgba(242,184,75,0.5); }
+    70% { box-shadow: 0 0 0 7px rgba(242,184,75,0); }
+    100% { box-shadow: 0 0 0 0 rgba(242,184,75,0); }
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .status-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .status-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .status-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .status-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .status-value.ok { color: var(--cyan); }
+  .status-value.warn { color: var(--amber); }
+  .status-value.down { color: var(--coral); }
+  .status-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: var(--mono);
+  }
+
+  section { margin-bottom: 32px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+  .section-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .gateway-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .gateway-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .gateway-card.offline { border-left-color: var(--coral); opacity: 0.6; }
+  .gateway-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gateway-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    padding: 2px 0;
+  }
+  .gateway-row span:last-child { color: var(--text); }
+
+  /* ---------- Machine cards (Dashboard overview) ---------- */
+  .machine-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .machine-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .machine-card:hover { border-color: var(--cyan); }
+  .machine-card.state-running { border-left: 3px solid #4FD18F; }
+  .machine-card.state-idle { border-left: 3px solid var(--amber); }
+  .machine-card.state-offline { border-left: 3px solid var(--coral); }
+  .machine-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .machine-name { font-weight: 600; font-size: 15px; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .badge.running { background: rgba(79,209,143,0.15); color: #4FD18F; }
+  .badge.idle { background: rgba(242,184,75,0.15); color: var(--amber); }
+  .badge.offline { background: rgba(239,100,97,0.15); color: var(--coral); }
+  .machine-card-sub { font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
+
+  /* ---------- Machine detail (Machines page) ---------- */
+  .machine-select-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .machine-chip {
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .machine-chip.active { border-color: var(--cyan); color: var(--cyan); background: rgba(79,209,197,0.08); }
+
+  .metric-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .metric-card.accent-status { border-color: var(--amber); }
+  .metric-card.accent-status.running { border-color: #4FD18F; }
+  .metric-card.accent-status.offline { border-color: var(--coral); }
+  .metric-card.accent-output { border-color: var(--cyan); }
+  .metric-card.accent-runtime { border-color: #4FD18F; }
+  .metric-card.accent-downtime { border-color: var(--amber); }
+  .metric-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .metric-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .metric-pct { font-family: var(--mono); font-size: 12px; }
+  .metric-value { font-family: var(--mono); font-size: 26px; font-weight: 600; }
+  .metric-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .metric-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 4px; }
+
+  .reset-shift-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .reset-shift-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .session-note {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 20px;
+  }
+
+  /* ---------- VPN Fleet page ---------- */
+  .fleet-note {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 20px;
+  }
+  .fleet-section { margin-bottom: 28px; }
+  .fleet-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .fleet-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+  .fleet-section-title.is-top { color: var(--muted); }
+  .fleet-section-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .fleet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .fleet-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .fleet-card.offline { border-left-color: var(--coral); }
+  .fleet-card.offline .fleet-card-name .dot { background: var(--coral); animation: none; box-shadow: none; }
+  .fleet-card.offline .fleet-row span:last-child { color: var(--muted); }
+  .fleet-card.is-demo { border-left-color: var(--amber); }
+  .fleet-badge-demo {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+  .fleet-badge-offline {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    color: var(--coral);
+    border: 1px solid var(--coral);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+  .fleet-btn.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+  .fleet-card-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fleet-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    padding: 2px 0;
+  }
+  .fleet-row span:last-child { color: var(--text); }
+  .fleet-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .fleet-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .fleet-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .fleet-btn.nodered:hover { border-color: var(--amber); color: var(--amber); }
+
+  .search-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 12.5px;
+    font-family: var(--sans);
+    width: 220px;
+  }
+  .search-box:focus { outline: none; border-color: var(--cyan); }
+
+  .param-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .param-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .param-card.alarm-active { border-color: var(--coral); background: rgba(239,100,97,0.06); }
+  .param-card.no-data { opacity: 0.45; }
+  .param-card.no-data .param-value { color: var(--muted); font-style: italic; font-size: 13px; }
+  .param-card.hidden-by-search { display: none; }
+  .param-name {
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .param-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+  }
+  .param-card.alarm-active .param-value { color: var(--coral); }
+
+  .empty-state {
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  .sap-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .sap-item .status-label { margin-bottom: 4px; }
+  .sap-item .status-value { font-size: 16px; }
+
+  footer {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation: none; }
+  }
+
+  @media (max-width: 720px) {
+    .sidebar { position: fixed; z-index: 10; transform: translateX(-100%); transition: transform 0.2s; }
+    .sidebar.open { transform: translateX(0); }
+    .main { padding: 18px; }
+  }
+</style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>Live Shop Floor Data</h2>
-        <div class="machine-name" id="machine-id">Loading...</div>
-        <div class="status-badge" id="status">---</div>
-        
-        <div class="metric">
-            <span>Speed:</span>
-            <strong id="rpm">0 RPM</strong>
-        </div>
-        <div class="metric">
-            <span>Temp:</span>
-            <strong id="temp">0.0 °C</strong>
-        </div>
-        <div class="metric">
-            <span>Vibration:</span>
-            <strong id="vibration">0.0 mm/s</strong>
-        </div>
+<nav class="sidebar" id="sidebar">
+  <div class="brand">
+    <span class="brand-mark">ELT · SLOGIC</span>
+  </div>
+  <div class="nav-item active" data-page="dashboard">
+    <span class="nav-icon">▦</span> Dashboard
+  </div>
+  <div class="nav-item" data-page="machines">
+    <span class="nav-icon">⚙</span> Machines
+  </div>
+  <div class="nav-item" data-page="fleet">
+    <span class="nav-icon">⛓</span> VPN Fleet
+  </div>
+  <div class="nav-item disabled">
+    <span class="nav-icon">▤</span> Processes <span class="nav-soon">soon</span>
+  </div>
+  <div class="nav-item disabled">
+    <span class="nav-icon">◔</span> Downtimes <span class="nav-soon">soon</span>
+  </div>
+  <div class="nav-item disabled">
+    <span class="nav-icon">▥</span> Reports <span class="nav-soon">soon</span>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="topbar">
+    <div>
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="sub" id="pageSub">IIoT Fleet Monitor — overview of all gateways &amp; machines</div>
+    </div>
+    <div class="topbar-right">
+      <div class="clock"><span class="dot" id="heartbeat"></span><span id="clockText">—</span></div>
+      <button class="refresh-btn" id="manualRefresh" title="Refresh now">⟳</button>
+    </div>
+  </div>
+
+  <!-- ================= DASHBOARD PAGE ================= -->
+  <div class="page active" id="page-dashboard">
+
+    <div class="status-strip">
+      <div class="status-card">
+        <div class="status-label">Gateways Online</div>
+        <div class="status-value ok" id="gwSummary">— / —</div>
+        <div class="status-sub" id="gwSub">checking…</div>
+      </div>
+      <div class="status-card">
+        <div class="status-label">Machine Feed</div>
+        <div class="status-value" id="feedSummary">—</div>
+        <div class="status-sub" id="feedSub">—</div>
+      </div>
+      <div class="status-card">
+        <div class="status-label">SAP Sync</div>
+        <div class="status-value" id="sapSummary">—</div>
+        <div class="status-sub" id="sapSub">—</div>
+      </div>
     </div>
 
-    <script>
-        async function updateDashboard() {
-            try {
-                const response = await fetch('/api/machine-status');
-                const data = await response.json();
-                
-                // Mapping data elements to HTML elements
-                document.getElementById('machine-id').innerText = data.machineId;
-                document.getElementById('status').innerText = data.status;
-                document.getElementById('rpm').innerText = data.rpm + ' RPM';
-                document.getElementById('temp').innerText = data.temperature + ' °C';
-                
-                // FIXED: Capitalized 'innerText' properly
-                document.getElementById('vibration').innerText = data.vibration + ' mm/s';
-                
-            } catch (error) {
-                console.error("Error updating dashboard:", error);
-            }
-        }
+    <section>
+      <div class="section-head">
+        <div class="section-title">Machines Overview</div>
+        <div class="section-meta">click a machine to view details</div>
+      </div>
+      <div class="machine-overview-grid" id="machineOverviewGrid">
+        <div class="empty-state">Waiting for machine data…</div>
+      </div>
+    </section>
 
-        // Run the update when page loads immediately
-        updateDashboard();
-        
-        // FIXED: Lowercase 'u' so it perfectly references our function, repeating every 2 seconds
-        setInterval(updateDashboard, 2000);
-    </script>
+    <section>
+      <div class="section-head">
+        <div class="section-title">VPN Gateways</div>
+        <div class="section-meta" id="gwMeta"></div>
+      </div>
+      <div class="gateway-grid" id="gatewayGrid">
+        <div class="empty-state">Loading gateway status…</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div class="section-title">SAP Integration</div>
+      </div>
+      <div class="sap-panel" id="sapPanel">
+        <div class="empty-state">Loading SAP status…</div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= MACHINES PAGE ================= -->
+  <div class="page" id="page-machines">
+
+    <div class="machine-select-row" id="machineSelectRow">
+      <!-- machine chips injected here -->
+    </div>
+
+    <div class="session-note">
+      Status / Output / Runtime / Downtime below are tracked <strong>since this browser tab was opened</strong> (stored locally in this browser), not tied to an actual shift calendar yet — that needs the historian DB wired up (Phase 2). Use "Reset Shift" to zero the counters manually for now.
+    </div>
+
+    <div class="metric-strip">
+      <div class="metric-card accent-status" id="mStatusCard">
+        <div class="metric-head"><span class="metric-label">Status</span></div>
+        <div class="metric-value" id="mStatusValue">—</div>
+        <div class="metric-sub" id="mStatusSub">—</div>
+      </div>
+      <div class="metric-card accent-output">
+        <div class="metric-head"><span class="metric-label">Output</span></div>
+        <div class="metric-value" id="mOutputValue">0.0<span class="metric-unit">CYCLES</span></div>
+        <div class="metric-sub">since session start</div>
+      </div>
+      <div class="metric-card accent-runtime">
+        <div class="metric-head"><span class="metric-label">Runtime</span><span class="metric-pct" id="mRuntimePct">0%</span></div>
+        <div class="metric-value" id="mRuntimeValue">00:00:00</div>
+      </div>
+      <div class="metric-card accent-downtime">
+        <div class="metric-head"><span class="metric-label">Downtime</span><span class="metric-pct" id="mDowntimePct">0%</span></div>
+        <div class="metric-value" id="mDowntimeValue">00:00:00</div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom: 20px;">
+      <button class="reset-shift-btn" id="resetShiftBtn">↺ Reset Shift Counters</button>
+    </div>
+
+    <section>
+      <div class="section-head">
+        <div class="section-title">Parameters</div>
+        <input type="text" class="search-box" id="paramSearch" placeholder="Search parameters…">
+      </div>
+      <div class="section-meta" id="machineMeta" style="margin-bottom: 12px;"></div>
+      <div class="param-grid" id="paramGrid">
+        <div class="empty-state">Waiting for MQTT data…</div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= VPN FLEET PAGE ================= -->
+  <div class="page" id="page-fleet">
+
+    <div class="fleet-note">
+      Grouped by client — Laptops &amp; Demo row on top (infrastructure, not client sites),
+      one row per client below. Cyan/live cards are currently connected, red/OFFLINE cards
+      are known gateways with no active VPN session right now. <strong>Gateway UI</strong>
+      links work once the device is online and you're on the VPN. <strong>Node-RED</strong>
+      links only work on devices manually switched into "Graphical Programming" mode on
+      the M300's own web UI (not the default mode) — it'll fail on any gateway still in
+      standard edge-gateway mode, which right now is all of them.
+    </div>
+
+    <div id="fleetSections">
+      <div class="empty-state">Loading fleet…</div>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+const REFRESH_MS = 8000;
+
+/* Presentation-only constants — the actual gateway list now comes
+   entirely from the backend (/api/vpn/sites reads Oracle's ccd/ folders
+   directly), so this file no longer needs to know every gateway name.
+   These two arrays just control which group a name falls into. */
+const DEMO_GATEWAY_NAMES = ['demo-gateway'];
+const LAPTOP_NAMES = ['admin-laptop', 'ela-laptop', 'laptop2-oracle'];
+
+/* Friendly display names for client groups — add entries here as
+   naming becomes clearer or new clients are added. Falls back to a
+   capitalized version of the raw prefix if not listed. */
+const CLIENT_LABELS = {
+  ashoklayland: 'Ashok Layland',
+  rubymill: 'Rubymill',
+  gloster: 'Gloster',
+  hlmando: 'Hlmando',
+  venus: 'Venus'
+};
+
+function clientGroupKey(name) {
+  if (DEMO_GATEWAY_NAMES.includes(name) || LAPTOP_NAMES.includes(name)) return '__top__';
+  let base = name.replace(/-?\d+$/, '');
+  if (base.includes('-')) base = base.split('-')[0];
+  return base;
+}
+
+function clientGroupLabel(key) {
+  if (key === '__top__') return 'Laptops & Demo';
+  return CLIENT_LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+}
+
+/* M300's own config webpage is plain HTTP on the default port — no
+   port suffix needed in the URL (confirmed against PUSR's manual,
+   which shows users just typing the bare IP). Node-RED only becomes
+   reachable after a device is manually switched into "Graphical
+   Programming" mode on its own web UI (requires a reboot) — it's
+   NOT running by default, so this link will 404/timeout on any
+   gateway still in default edge-gateway mode. */
+const NODE_RED_PORT = 1880;
+
+/* ---------------------------------------------------------
+   CONFIG — adjust these to match your actual tag names.
+   Status detection checks each candidate key (case-insensitive,
+   spaces/underscores ignored) and treats a nonzero value as
+   "machine running". Add/remove keys as needed per machine type.
+--------------------------------------------------------- */
+const RUNNING_TAG_CANDIDATES = [
+  'process_speed', 'inline_speed_mmin', 'line_speed',
+  'auto_cycle_status', 'auto_cycle', 'machine_running', 'running'
+];
+const CYCLE_COUNT_TAG_CANDIDATES = [
+  'machine_cycle_counter', 'cycle_count', 'cyclecount'
+];
+/* Single machine for now (Venus). Extend this array when more
+   machines/gateways are added — each entry maps a display name
+   to the API topic/gateway it should read from. */
+const MACHINES = [
+  { id: 'venus', name: 'Venus — Glue Winding', endpoint: '/api/machine-status/demo' }
+];
+
+let currentMachineId = MACHINES[0].id;
+let sessionState = {}; // per-machine session tracking, keyed by machine id
+
+function loadSessionState(id) {
+  const raw = localStorage.getItem('mstate_' + id);
+  if (raw) {
+    try { return JSON.parse(raw); } catch (e) {}
+  }
+  return {
+    sessionStart: Date.now(),
+    lastStatus: null,
+    lastStatusChangeAt: Date.now(),
+    runningMs: 0,
+    idleMs: 0,
+    baselineCycleCount: null
+  };
+}
+function saveSessionState(id, state) {
+  localStorage.setItem('mstate_' + id, JSON.stringify(state));
+}
+MACHINES.forEach(m => { sessionState[m.id] = loadSessionState(m.id); });
+
+function normalizeKey(k) {
+  return k.toLowerCase().replace(/[\s_]+/g, '_');
+}
+
+function findTagValue(data, candidates) {
+  const keys = Object.keys(data);
+  for (const cand of candidates) {
+    const hit = keys.find(k => normalizeKey(k) === cand);
+    if (hit !== undefined) {
+      const n = Number(data[hit]);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+function fmtHMS(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSec % 60).padStart(2, '0');
+  return h + ':' + m + ':' + s;
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString();
+}
+
+function fmtAgo(iso) {
+  if (!iso) return 'never';
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 5) return 'just now';
+  if (secs < 60) return secs + 's ago';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return mins + 'm ago';
+  return Math.floor(mins / 60) + 'h ago';
+}
+
+function isAlarmField(key, value) {
+  const looksLikeAlarm = /_Al_\d+$/i.test(key) || /^Alarm/i.test(key);
+  if (!looksLikeAlarm) return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n !== 0;
+}
+
+function isNoDataValue(value) {
+  return typeof value === 'string' && value.toLowerCase() === 'error';
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(url + ' -> ' + res.status);
+  return res.json();
+}
+
+/* ---------------- Navigation ---------------- */
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    const page = item.dataset.page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    const titles = {
+      dashboard: ['Dashboard', 'IIoT Fleet Monitor — overview of all gateways & machines'],
+      machines: ['Machines', 'Live status, output, and parameters per machine'],
+      fleet: ['VPN Fleet', 'All connected gateways — jump straight to each one\'s UI or Node-RED']
+    };
+    document.getElementById('pageTitle').textContent = titles[page][0];
+    document.getElementById('pageSub').textContent = titles[page][1];
+  });
+});
+
+/* ---------------- Machine chips (Machines page) ---------------- */
+function renderMachineChips() {
+  const row = document.getElementById('machineSelectRow');
+  row.innerHTML = MACHINES.map(m => `
+    <div class="machine-chip ${m.id === currentMachineId ? 'active' : ''}" data-id="${m.id}">${m.name}</div>
+  `).join('');
+  row.querySelectorAll('.machine-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      currentMachineId = chip.dataset.id;
+      renderMachineChips();
+      refreshMachine();
+    });
+  });
+}
+renderMachineChips();
+
+document.getElementById('resetShiftBtn').addEventListener('click', () => {
+  sessionState[currentMachineId] = {
+    sessionStart: Date.now(),
+    lastStatus: null,
+    lastStatusChangeAt: Date.now(),
+    runningMs: 0,
+    idleMs: 0,
+    baselineCycleCount: null
+  };
+  saveSessionState(currentMachineId, sessionState[currentMachineId]);
+  refreshMachine();
+});
+
+/* ---------------- Dashboard refreshers ---------------- */
+async function refreshGateways() {
+  const grid = document.getElementById('gatewayGrid');
+  try {
+    const data = await fetchJSON('/api/vpn/sites');
+    const sites = data.sites || [];
+    const onlineSites = sites.filter(s => s.online);
+    const totalKnown = data.totalKnown ?? sites.length;
+    document.getElementById('gwSummary').textContent = onlineSites.length + ' / ' + totalKnown;
+    document.getElementById('gwSub').textContent = onlineSites.length
+      ? (totalKnown - onlineSites.length) + ' offline — see VPN Fleet tab for full list'
+      : 'no gateways connected';
+    document.getElementById('gwMeta').textContent = 'checked ' + fmtAgo(data.checkedAt);
+
+    if (!onlineSites.length) {
+      grid.innerHTML = '<div class="empty-state">No gateways currently connected.</div>';
+      return;
+    }
+    grid.innerHTML = onlineSites.map(s => `
+      <div class="gateway-card">
+        <div class="gateway-name"><span class="dot"></span>${s.name}</div>
+        <div class="gateway-row"><span>VPN IP</span><span>${s.vpnIp || '—'}</span></div>
+        <div class="gateway-row"><span>Real Address</span><span>${s.realAddress || '—'}</span></div>
+        <div class="gateway-row"><span>Connected Since</span><span>${s.connectedSince || '—'}</span></div>
+        <div class="gateway-row"><span>Data Rx / Tx</span><span>${(s.bytesReceived/1024).toFixed(1)}K / ${(s.bytesSent/1024).toFixed(1)}K</span></div>
+      </div>
+    `).join('');
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">Could not reach /api/vpn/sites — ' + err.message + '</div>';
+    document.getElementById('gwSummary').textContent = '—';
+    document.getElementById('gwSummary').className = 'status-value down';
+  }
+}
+
+function renderFleetCard(s) {
+  const isOnline = s.online;
+  const isDemo = DEMO_GATEWAY_NAMES.includes(s.name);
+  const uiUrl = isOnline && s.vpnIp ? `http://${s.vpnIp}/` : null;
+  const nrUrl = isOnline && s.vpnIp ? `http://${s.vpnIp}:${NODE_RED_PORT}/` : null;
+
+  return `
+    <div class="fleet-card ${isOnline ? '' : 'offline'} ${isDemo ? 'is-demo' : ''}">
+      <div class="fleet-card-name">
+        <span class="dot"></span>${s.name}
+        ${isDemo ? '<span class="fleet-badge-demo">DEMO</span>' : ''}
+        ${!isOnline ? '<span class="fleet-badge-offline">OFFLINE</span>' : ''}
+      </div>
+      <div class="fleet-row"><span>VPN IP</span><span>${s.vpnIp || '—'}</span></div>
+      <div class="fleet-row"><span>Real Address</span><span>${s.realAddress || '—'}</span></div>
+      <div class="fleet-row"><span>Connected Since</span><span>${s.connectedSince || '—'}</span></div>
+      <div class="fleet-row"><span>Data Rx / Tx</span><span>${isOnline ? (s.bytesReceived/1024).toFixed(1)+'K / '+(s.bytesSent/1024).toFixed(1)+'K' : '—'}</span></div>
+      <div class="fleet-actions">
+        <a class="fleet-btn ${uiUrl ? '' : 'disabled'}" href="${uiUrl || '#'}" target="_blank" rel="noopener">Gateway UI →</a>
+        <a class="fleet-btn nodered ${nrUrl ? '' : 'disabled'}" href="${nrUrl || '#'}" target="_blank" rel="noopener" title="Only works if this device has been switched into Graphical Programming mode on its own web UI — not on by default">Node-RED →</a>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshFleet() {
+  const container = document.getElementById('fleetSections');
+  try {
+    const data = await fetchJSON('/api/vpn/sites');
+    const sites = data.sites || [];
+
+    const groups = {};
+    sites.forEach(s => {
+      const key = clientGroupKey(s.name);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s);
+    });
+
+    const groupKeys = Object.keys(groups).filter(k => k !== '__top__');
+    groupKeys.sort((a, b) => clientGroupLabel(a).localeCompare(clientGroupLabel(b)));
+    const orderedKeys = groups['__top__'] ? ['__top__', ...groupKeys] : groupKeys;
+
+    container.innerHTML = orderedKeys.map(key => {
+      const items = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+      const onlineCount = items.filter(s => s.online).length;
+      return `
+        <div class="fleet-section">
+          <div class="fleet-section-head">
+            <div class="fleet-section-title ${key === '__top__' ? 'is-top' : ''}">${clientGroupLabel(key)}</div>
+            <div class="fleet-section-count">${onlineCount} / ${items.length} online</div>
+          </div>
+          <div class="fleet-grid">
+            ${items.map(s => renderFleetCard(s)).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="empty-state">Could not reach /api/vpn/sites — ' + err.message + '</div>';
+  }
+}
+
+async function refreshSap() {
+  const panel = document.getElementById('sapPanel');
+  const sapVal = document.getElementById('sapSummary');
+  const sapSub = document.getElementById('sapSub');
+  try {
+    const data = await fetchJSON('/api/sap/sync-status');
+    if (data.status === 'no_reports_yet') {
+      sapVal.textContent = 'NO DATA';
+      sapVal.className = 'status-value warn';
+      sapSub.textContent = 'awaiting first report';
+      panel.innerHTML = '<div class="empty-state">No SAP sync reports received yet.</div>';
+      return;
+    }
+    const errorCount = data.errorCount ?? 0;
+    sapVal.textContent = errorCount > 0 ? errorCount + ' ERRORS' : 'OK';
+    sapVal.className = 'status-value ' + (errorCount > 0 ? 'down' : 'ok');
+    sapSub.textContent = fmtAgo(data.reportedAt);
+
+    panel.innerHTML = `
+      <div class="sap-item"><div class="status-label">Pending</div><div class="status-value" style="font-size:16px">${data.pendingCount ?? '—'}</div></div>
+      <div class="sap-item"><div class="status-label">Errors</div><div class="status-value ${errorCount > 0 ? 'down' : 'ok'}" style="font-size:16px">${data.errorCount ?? '—'}</div></div>
+      <div class="sap-item"><div class="status-label">Last File</div><div class="status-value" style="font-size:16px">${data.lastFileProcessed ?? '—'}</div></div>
+      <div class="sap-item"><div class="status-label">Reported</div><div class="status-value" style="font-size:16px">${fmtTime(data.reportedAt)}</div></div>
+    `;
+  } catch (err) {
+    panel.innerHTML = '<div class="empty-state">Could not reach /api/sap/sync-status — ' + err.message + '</div>';
+    sapVal.textContent = 'ERROR';
+    sapVal.className = 'status-value down';
+  }
+}
+
+/* ---------------- Derived machine state ---------------- */
+function updateSessionTracking(machineId, isConnected, isRunning) {
+  const state = sessionState[machineId];
+  const now = Date.now();
+  const status = !isConnected ? 'offline' : (isRunning ? 'running' : 'idle');
+
+  if (state.lastStatus === null) {
+    state.lastStatus = status;
+    state.lastStatusChangeAt = now;
+  } else if (state.lastStatus !== status) {
+    const elapsed = now - state.lastStatusChangeAt;
+    if (state.lastStatus === 'running') state.runningMs += elapsed;
+    else if (state.lastStatus === 'idle') state.idleMs += elapsed;
+    state.lastStatus = status;
+    state.lastStatusChangeAt = now;
+  }
+  saveSessionState(machineId, state);
+  return status;
+}
+
+function liveElapsedForCurrentStatus(state) {
+  return Date.now() - state.lastStatusChangeAt;
+}
+
+/* ---------------- Machines page refresher ---------------- */
+async function refreshMachine() {
+  const machine = MACHINES.find(m => m.id === currentMachineId);
+  const grid = document.getElementById('paramGrid');
+  const feedVal = document.getElementById('feedSummary');
+  const feedSub = document.getElementById('feedSub');
+
+  try {
+    const data = await fetchJSON(machine.endpoint);
+    const hasData = !!data.data;
+
+    // Dashboard status strip (reflects primary/first machine feed)
+    if (machine.id === MACHINES[0].id) {
+      if (!data.connected) {
+        feedVal.textContent = 'DISCONNECTED';
+        feedVal.className = 'status-value down';
+        feedSub.textContent = 'MQTT link down';
+      } else if (!hasData) {
+        feedVal.textContent = 'CONNECTED';
+        feedVal.className = 'status-value warn';
+        feedSub.textContent = 'no messages yet';
+      } else {
+        feedVal.textContent = 'LIVE';
+        feedVal.className = 'status-value ok';
+        feedSub.textContent = fmtAgo(data.lastMessageAt);
+      }
+    }
+
+    const metaBits = [];
+    if (data.topic) metaBits.push(data.topic);
+    if (data.gatewayId) metaBits.push('GW: ' + data.gatewayId);
+    if (data.machineTs) metaBits.push('machine ts: ' + data.machineTs);
+    document.getElementById('machineMeta').textContent = metaBits.join(' · ');
+
+    // Derive running/idle/offline
+    let isRunning = false;
+    let cycleCount = null;
+    if (hasData) {
+      const runVal = findTagValue(data.data, RUNNING_TAG_CANDIDATES);
+      isRunning = runVal !== null && runVal !== 0;
+      cycleCount = findTagValue(data.data, CYCLE_COUNT_TAG_CANDIDATES);
+    }
+    const status = updateSessionTracking(machine.id, data.connected && hasData, isRunning);
+    const state = sessionState[machine.id];
+
+    // Metric cards
+    const statusCard = document.getElementById('mStatusCard');
+    statusCard.className = 'metric-card accent-status ' + status;
+    const statusVal = document.getElementById('mStatusValue');
+    const statusSub = document.getElementById('mStatusSub');
+    statusVal.textContent = status.toUpperCase();
+    const elapsedInStatus = liveElapsedForCurrentStatus(state);
+    statusSub.textContent = (status === 'offline' ? 'offline for ' : status + ' from ') + fmtHMS(elapsedInStatus);
+
+    // Output: cycles since session start (or since last reset)
+    if (cycleCount !== null) {
+      if (state.baselineCycleCount === null) {
+        state.baselineCycleCount = cycleCount;
+        saveSessionState(machine.id, state);
+      }
+      const delta = Math.max(0, cycleCount - state.baselineCycleCount);
+      document.getElementById('mOutputValue').innerHTML = delta.toFixed(1) + '<span class="metric-unit">CYCLES</span>';
+    }
+
+    // Runtime / Downtime totals (including live elapsed in current bucket)
+    let runningMs = state.runningMs;
+    let idleMs = state.idleMs;
+    if (status === 'running') runningMs += elapsedInStatus;
+    else if (status === 'idle') idleMs += elapsedInStatus;
+
+    document.getElementById('mRuntimeValue').textContent = fmtHMS(runningMs);
+    document.getElementById('mDowntimeValue').textContent = fmtHMS(idleMs);
+    const totalTracked = runningMs + idleMs;
+    document.getElementById('mRuntimePct').textContent = totalTracked ? Math.round((runningMs / totalTracked) * 100) + '%' : '0%';
+    document.getElementById('mDowntimePct').textContent = totalTracked ? Math.round((idleMs / totalTracked) * 100) + '%' : '0%';
+
+    // Parameters grid
+    if (!hasData) {
+      grid.innerHTML = '<div class="empty-state">No machine data received yet on this topic.</div>';
+    } else {
+      const entries = Object.entries(data.data);
+      grid.innerHTML = entries.map(([key, val]) => {
+        const alarm = isAlarmField(key, val);
+        const noData = isNoDataValue(val);
+        const cls = alarm ? 'alarm-active' : (noData ? 'no-data' : '');
+        const displayVal = noData ? 'no data' : val;
+        return `
+          <div class="param-card ${cls}" data-search="${key.toLowerCase()}">
+            <div class="param-name">${key.replace(/_/g, ' ')}</div>
+            <div class="param-value">${displayVal}</div>
+          </div>
+        `;
+      }).join('');
+      applyParamSearch();
+    }
+
+    // Update dashboard machine overview card too
+    renderMachineOverviewCard(machine, status, elapsedInStatus);
+
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">Could not reach ' + machine.endpoint + ' — ' + err.message + '</div>';
+    if (machine.id === MACHINES[0].id) {
+      feedVal.textContent = 'ERROR';
+      feedVal.className = 'status-value down';
+    }
+  }
+}
+
+function applyParamSearch() {
+  const q = document.getElementById('paramSearch').value.trim().toLowerCase();
+  document.querySelectorAll('#paramGrid .param-card').forEach(card => {
+    const matches = !q || card.dataset.search.includes(q);
+    card.classList.toggle('hidden-by-search', !matches);
+  });
+}
+document.getElementById('paramSearch').addEventListener('input', applyParamSearch);
+
+/* ---------------- Dashboard machine overview cards ---------------- */
+const overviewCardCache = {};
+function renderMachineOverviewCard(machine, status, elapsedInStatus) {
+  overviewCardCache[machine.id] = { machine, status, elapsedInStatus };
+  const grid = document.getElementById('machineOverviewGrid');
+  grid.innerHTML = Object.values(overviewCardCache).map(({ machine, status, elapsedInStatus }) => `
+    <div class="machine-card state-${status}" data-id="${machine.id}">
+      <div class="machine-card-head">
+        <span class="machine-name">${machine.name}</span>
+        <span class="badge ${status}">${status.toUpperCase()}</span>
+      </div>
+      <div class="machine-card-sub">${status === 'offline' ? 'offline for' : status + ' from'} ${fmtHMS(elapsedInStatus)}</div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.machine-card').forEach(card => {
+    card.addEventListener('click', () => {
+      currentMachineId = card.dataset.id;
+      document.querySelector('.nav-item[data-page="machines"]').click();
+      renderMachineChips();
+      refreshMachine();
+    });
+  });
+}
+
+/* ---------------- Global tick / refresh ---------------- */
+function tickClock() {
+  document.getElementById('clockText').textContent = new Date().toLocaleTimeString();
+}
+
+async function refreshAll() {
+  await Promise.all([refreshGateways(), refreshSap(), refreshMachine(), refreshFleet()]);
+}
+
+document.getElementById('manualRefresh').addEventListener('click', refreshAll);
+
+tickClock();
+setInterval(tickClock, 1000);
+refreshAll();
+setInterval(refreshAll, REFRESH_MS);
+</script>
+
 </body>
 </html>
