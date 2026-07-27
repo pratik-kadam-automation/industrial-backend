@@ -462,6 +462,191 @@
   .fleet-btn:hover { border-color: var(--cyan); color: var(--cyan); }
   .fleet-btn.nodered:hover { border-color: var(--amber); color: var(--amber); }
 
+  .fleet-btn.mqtt-linked { border-color: var(--cyan); color: var(--cyan); }
+  .fleet-btn.mqtt-add { border-color: var(--amber); color: var(--amber); }
+
+  /* ---------- Modal (MQTT data viewer / add topic form) ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 640px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 24px;
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--cyan); }
+  .modal-form-row { margin-bottom: 14px; }
+  .modal-form-row label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .modal-form-row input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13.5px;
+  }
+  .modal-form-row input:focus { outline: none; border-color: var(--cyan); }
+  .modal-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .modal-submit-btn {
+    background: var(--cyan);
+    color: #06110F;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .modal-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .modal-error {
+    color: var(--coral);
+    font-size: 12px;
+    margin-top: 10px;
+    display: none;
+  }
+  .modal-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ---------- Modal toolbar: Live/History tabs + Edit/Delete ---------- */
+  .modal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-tab {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+  .modal-tab:hover { color: var(--text); border-color: var(--cyan); }
+  .modal-tab.active {
+    color: var(--bg);
+    background: var(--cyan);
+    border-color: var(--cyan);
+    font-weight: 600;
+  }
+  .modal-toolbar-spacer { flex: 1 1 auto; }
+  .modal-action-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+  .modal-action-btn:hover { color: var(--text); border-color: var(--cyan); }
+  .modal-action-btn.danger:hover { color: var(--coral); border-color: var(--coral); }
+
+  /* ---------- History list (MQTTX-style) ---------- */
+  .msg-list { display: flex; flex-direction: column; gap: 10px; }
+  .msg-item {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .msg-item.newest { border-color: var(--cyan); }
+  .msg-item.parse-error { border-color: var(--coral); }
+  .msg-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .msg-time {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    font-weight: 600;
+  }
+  .msg-date, .msg-bytes {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .msg-badge {
+    font-size: 9.5px;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--cyan);
+    color: var(--bg);
+    font-weight: 700;
+  }
+  .msg-badge.err { background: var(--coral); }
+  .msg-body {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .fleet-infra-note {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    padding-top: 4px;
+  }
+
   .search-box {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -711,6 +896,12 @@
 
 </main>
 
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <!-- content injected by JS -->
+  </div>
+</div>
+
 <script>
 const REFRESH_MS = 8000;
 
@@ -719,7 +910,7 @@ const REFRESH_MS = 8000;
    directly), so this file no longer needs to know every gateway name.
    These two arrays just control which group a name falls into. */
 const DEMO_GATEWAY_NAMES = ['demo-gateway'];
-const LAPTOP_NAMES = ['admin-laptop', 'ela-laptop', 'laptop2-oracle'];
+const LAPTOP_NAMES = ['admin-laptop', 'ela-laptop', 'laptop2-oracle', 'pratik-phone'];
 
 /* Friendly display names for client groups — add entries here as
    naming becomes clearer or new clients are added. Falls back to a
@@ -933,11 +1124,30 @@ async function refreshGateways() {
   }
 }
 
-function renderFleetCard(s) {
+function renderFleetCard(s, machineTopicsByGateway) {
   const isOnline = s.online;
   const isDemo = DEMO_GATEWAY_NAMES.includes(s.name);
+  /* Laptops and phones are VPN clients, not gateways -- they have no web
+     UI on port 80, no Node-RED, and nothing to publish to MQTT. Showing
+     those three buttons on their cards was misleading (they could only
+     ever fail), so infra clients get status only. Move a name between
+     LAPTOP_NAMES and the gateway groups to flip this behaviour. */
+  const isInfraClient = LAPTOP_NAMES.includes(s.name);
   const uiUrl = isOnline && s.vpnIp ? `http://${s.vpnIp}/` : null;
   const nrUrl = isOnline && s.vpnIp ? `http://${s.vpnIp}:${NODE_RED_PORT}/` : null;
+  const linkedMachine = machineTopicsByGateway[s.name];
+
+  const mqttBtn = linkedMachine
+    ? `<button class="fleet-btn mqtt-linked" onclick="openMqttDataModal('${linkedMachine.machine_id}', '${linkedMachine.display_name.replace(/'/g, "\\'")}')">MQTT Data →</button>`
+    : `<button class="fleet-btn mqtt-add" onclick="openAddTopicModal('${s.name.replace(/'/g, "\\'")}')">+ Add Topic</button>`;
+
+  const actionsHtml = isInfraClient
+    ? `<div class="fleet-infra-note">VPN client — no gateway UI or MQTT feed</div>`
+    : `<div class="fleet-actions">
+        <a class="fleet-btn ${uiUrl ? '' : 'disabled'}" href="${uiUrl || '#'}" target="_blank" rel="noopener">Gateway UI →</a>
+        <a class="fleet-btn nodered ${nrUrl ? '' : 'disabled'}" href="${nrUrl || '#'}" target="_blank" rel="noopener" title="Only works if this device has been switched into Graphical Programming mode on its own web UI — not on by default">Node-RED →</a>
+        ${mqttBtn}
+      </div>`;
 
   return `
     <div class="fleet-card ${isOnline ? '' : 'offline'} ${isDemo ? 'is-demo' : ''}">
@@ -950,10 +1160,7 @@ function renderFleetCard(s) {
       <div class="fleet-row"><span>Real Address</span><span>${s.realAddress || '—'}</span></div>
       <div class="fleet-row"><span>Connected Since</span><span>${s.connectedSince || '—'}</span></div>
       <div class="fleet-row"><span>Data Rx / Tx</span><span>${isOnline ? (s.bytesReceived/1024).toFixed(1)+'K / '+(s.bytesSent/1024).toFixed(1)+'K' : '—'}</span></div>
-      <div class="fleet-actions">
-        <a class="fleet-btn ${uiUrl ? '' : 'disabled'}" href="${uiUrl || '#'}" target="_blank" rel="noopener">Gateway UI →</a>
-        <a class="fleet-btn nodered ${nrUrl ? '' : 'disabled'}" href="${nrUrl || '#'}" target="_blank" rel="noopener" title="Only works if this device has been switched into Graphical Programming mode on its own web UI — not on by default">Node-RED →</a>
-      </div>
+      ${actionsHtml}
     </div>
   `;
 }
@@ -961,8 +1168,15 @@ function renderFleetCard(s) {
 async function refreshFleet() {
   const container = document.getElementById('fleetSections');
   try {
-    const data = await fetchJSON('/api/vpn/sites');
-    const sites = data.sites || [];
+    const [vpnData, topicsData] = await Promise.all([
+      fetchJSON('/api/vpn/sites'),
+      fetchJSON('/api/machine-topics').catch(() => ({ machines: [] })),
+    ]);
+    const sites = vpnData.sites || [];
+    const machineTopicsByGateway = {};
+    (topicsData.machines || []).forEach(m => {
+      if (m.vpn_gateway_name) machineTopicsByGateway[m.vpn_gateway_name] = m;
+    });
 
     const groups = {};
     sites.forEach(s => {
@@ -985,7 +1199,7 @@ async function refreshFleet() {
             <div class="fleet-section-count">${onlineCount} / ${items.length} online</div>
           </div>
           <div class="fleet-grid">
-            ${items.map(s => renderFleetCard(s)).join('')}
+            ${items.map(s => renderFleetCard(s, machineTopicsByGateway)).join('')}
           </div>
         </div>
       `;
@@ -1194,6 +1408,382 @@ function renderMachineOverviewCard(machine, status, elapsedInStatus) {
 /* ---------------- Global tick / refresh ---------------- */
 function tickClock() {
   document.getElementById('clockText').textContent = new Date().toLocaleTimeString();
+}
+
+/* ---------------- Modal: MQTT Data viewer + Add Topic form ---------------- */
+const modalOverlay = document.getElementById('modalOverlay');
+const modalBox = document.getElementById('modalBox');
+let modalRefreshTimer = null;
+
+function closeModal() {
+  modalOverlay.classList.remove('open');
+  modalBox.innerHTML = '';
+  modalCtx = { machineId: null, displayName: '', view: 'live' };
+  lastHistorySignature = null;
+  if (modalRefreshTimer) {
+    clearInterval(modalRefreshTimer);
+    modalRefreshTimer = null;
+  }
+}
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+
+/* Which machine the modal is currently showing, and which tab is
+   active. Held here rather than passed through onclick attributes so
+   display names containing quotes can't break the markup. */
+let modalCtx = { machineId: null, displayName: '', view: 'live' };
+let lastHistorySignature = null; // avoids re-rendering (and losing scroll) when nothing changed
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtClock(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const pad = (n, w) => String(n).padStart(w, '0');
+  return `${pad(d.getHours(),2)}:${pad(d.getMinutes(),2)}:${pad(d.getSeconds(),2)}.${pad(d.getMilliseconds(),3)}`;
+}
+
+function fmtDateOnly(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString();
+}
+
+function modalToolbarHtml() {
+  return `
+    <div class="modal-toolbar">
+      <button class="modal-tab ${modalCtx.view === 'live' ? 'active' : ''}" onclick="setModalView('live')">Live</button>
+      <button class="modal-tab ${modalCtx.view === 'history' ? 'active' : ''}" onclick="setModalView('history')">History</button>
+      <div class="modal-toolbar-spacer"></div>
+      <button class="modal-action-btn" onclick="openEditTopicModal()">Edit topic</button>
+      <button class="modal-action-btn danger" onclick="confirmDeleteTopic()">Delete</button>
+    </div>
+  `;
+}
+
+function setModalView(view) {
+  modalCtx.view = view;
+  lastHistorySignature = null;
+  renderMqttDataModalContent();
+}
+
+async function renderMqttDataModalContent() {
+  const { machineId, displayName } = modalCtx;
+  if (!machineId) return;
+
+  if (modalCtx.view === 'history') return renderHistoryView();
+
+  let dataObj;
+  try {
+    dataObj = await fetchJSON('/api/machine-status/' + encodeURIComponent(machineId));
+  } catch (err) {
+    modalBox.innerHTML = `
+      <div class="modal-head">
+        <div class="modal-title">${escapeHtml(displayName)}</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      ${modalToolbarHtml()}
+      <div class="empty-state">Could not reach machine status — ${escapeHtml(err.message)}</div>
+    `;
+    return;
+  }
+
+  const metaBits = [];
+  if (dataObj.topic) metaBits.push(dataObj.topic);
+  if (dataObj.gatewayId) metaBits.push('GW: ' + dataObj.gatewayId);
+  metaBits.push(dataObj.connected ? 'connected' : 'disconnected');
+  metaBits.push('last message: ' + fmtAgo(dataObj.lastMessageAt));
+
+  let bodyHtml;
+  if (!dataObj.data) {
+    bodyHtml = '<div class="empty-state">Subscribed, but no message received yet on this topic.</div>';
+  } else {
+    bodyHtml = `<div class="param-grid">` + Object.entries(dataObj.data).map(([key, val]) => {
+      const alarm = isAlarmField(key, val);
+      const noData = isNoDataValue(val);
+      const cls = alarm ? 'alarm-active' : (noData ? 'no-data' : '');
+      const displayVal = noData ? 'no data' : val;
+      return `
+        <div class="param-card ${cls}">
+          <div class="param-name">${escapeHtml(key.replace(/_/g, ' '))}</div>
+          <div class="param-value">${escapeHtml(displayVal)}</div>
+        </div>
+      `;
+    }).join('') + `</div>`;
+  }
+
+  modalBox.innerHTML = `
+    <div class="modal-head">
+      <div class="modal-title">${escapeHtml(displayName)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    ${modalToolbarHtml()}
+    <div class="modal-meta">${escapeHtml(metaBits.join(' · '))}</div>
+    ${bodyHtml}
+  `;
+}
+
+/* MQTTX-style raw message log: newest at the top, each entry stamped
+   with the moment the backend received it. Buffer lives in RAM on the
+   server (last 10 per machine) -- it is NOT persisted, so it resets
+   whenever industrial-backend restarts. */
+async function renderHistoryView() {
+  const { machineId, displayName } = modalCtx;
+  let hist;
+  try {
+    hist = await fetchJSON('/api/machine-history/' + encodeURIComponent(machineId));
+  } catch (err) {
+    modalBox.innerHTML = `
+      <div class="modal-head">
+        <div class="modal-title">${escapeHtml(displayName)}</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      ${modalToolbarHtml()}
+      <div class="empty-state">Could not reach message history — ${escapeHtml(err.message)}</div>
+    `;
+    return;
+  }
+
+  const messages = hist.messages || [];
+  // Don't repaint on the 8s tick unless something actually arrived --
+  // repainting would throw away the user's scroll position mid-read.
+  const signature = messages.length + '|' + (messages[0]?.receivedAt || '');
+  if (signature === lastHistorySignature) return;
+  lastHistorySignature = signature;
+
+  let bodyHtml;
+  if (!messages.length) {
+    bodyHtml = '<div class="empty-state">No messages buffered yet. Subscribed and waiting — this fills as messages arrive.</div>';
+  } else {
+    bodyHtml = '<div class="msg-list">' + messages.map((m, i) => {
+      let pretty;
+      if (m.parseError) {
+        pretty = m.raw;
+      } else {
+        try {
+          pretty = JSON.stringify(JSON.parse(m.raw), null, 2);
+        } catch (e) {
+          pretty = m.raw;
+        }
+      }
+      return `
+        <div class="msg-item ${i === 0 ? 'newest' : ''} ${m.parseError ? 'parse-error' : ''}">
+          <div class="msg-head">
+            <span class="msg-time">${fmtClock(m.receivedAt)}</span>
+            <span class="msg-date">${fmtDateOnly(m.receivedAt)}</span>
+            <span class="msg-bytes">${m.bytes} bytes</span>
+            ${i === 0 ? '<span class="msg-badge">LATEST</span>' : ''}
+            ${m.parseError ? '<span class="msg-badge err">INVALID JSON</span>' : ''}
+          </div>
+          <pre class="msg-body">${escapeHtml(pretty)}</pre>
+        </div>
+      `;
+    }).join('') + '</div>';
+  }
+
+  modalBox.innerHTML = `
+    <div class="modal-head">
+      <div class="modal-title">${escapeHtml(displayName)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    ${modalToolbarHtml()}
+    <div class="modal-meta">last ${hist.count} of ${hist.limit} buffered · newest first · in-memory, clears on backend restart</div>
+    ${bodyHtml}
+  `;
+}
+
+function openMqttDataModal(machineId, displayName) {
+  modalCtx = { machineId, displayName, view: 'live' };
+  lastHistorySignature = null;
+  modalOverlay.classList.add('open');
+  renderMqttDataModalContent();
+  if (modalRefreshTimer) clearInterval(modalRefreshTimer);
+  modalRefreshTimer = setInterval(() => renderMqttDataModalContent(), REFRESH_MS);
+}
+
+/* ---------------- Edit / Delete an existing topic ---------------- */
+
+async function openEditTopicModal() {
+  const { machineId } = modalCtx;
+  if (modalRefreshTimer) { clearInterval(modalRefreshTimer); modalRefreshTimer = null; }
+
+  let machine = null;
+  try {
+    const data = await fetchJSON('/api/machine-topics');
+    machine = (data.machines || []).find(m => m.machine_id === machineId);
+  } catch (err) { /* fall through to the not-found message below */ }
+
+  if (!machine) {
+    modalBox.innerHTML = `
+      <div class="modal-head">
+        <div class="modal-title">Edit topic</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="empty-state">Could not load this machine's current settings.</div>
+    `;
+    return;
+  }
+
+  modalBox.innerHTML = `
+    <div class="modal-head">
+      <div class="modal-title">Edit — ${escapeHtml(machine.display_name)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-form-row">
+      <label>Display Name</label>
+      <input type="text" id="editDisplayName" value="${escapeHtml(machine.display_name)}">
+    </div>
+    <div class="modal-form-row">
+      <label>MQTT Topic</label>
+      <input type="text" id="editTopic" value="${escapeHtml(machine.mqtt_topic)}">
+      <div class="modal-hint">Changing this re-subscribes immediately — no backend restart. The buffered history is cleared, since it belongs to the old topic.</div>
+    </div>
+    <div class="modal-form-row">
+      <label>VPN Gateway Name</label>
+      <input type="text" id="editGateway" value="${escapeHtml(machine.vpn_gateway_name || '')}">
+      <div class="modal-hint">Must match the ccd/ filename exactly, e.g. hlmando1. Leave blank for none.</div>
+    </div>
+    <div class="modal-meta">machine_id: ${escapeHtml(machine.machine_id)} (auto-generated, not editable)</div>
+    <button class="modal-submit-btn" id="editSubmitBtn" onclick="submitEditTopic()">Save Changes</button>
+    <div class="modal-error" id="editError"></div>
+  `;
+}
+
+async function submitEditTopic() {
+  const { machineId } = modalCtx;
+  const displayName = document.getElementById('editDisplayName').value.trim();
+  const topic = document.getElementById('editTopic').value.trim();
+  const gateway = document.getElementById('editGateway').value.trim();
+  const errBox = document.getElementById('editError');
+  const btn = document.getElementById('editSubmitBtn');
+  errBox.style.display = 'none';
+
+  if (!displayName || !topic) {
+    errBox.textContent = 'Display name and MQTT topic are both required.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/machine-topics/' + encodeURIComponent(machineId), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        display_name: displayName,
+        mqtt_topic: topic,
+        vpn_gateway_name: gateway || null,
+      }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Request failed');
+    closeModal();
+    refreshFleet();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+}
+
+function confirmDeleteTopic() {
+  const { machineId, displayName } = modalCtx;
+  if (modalRefreshTimer) { clearInterval(modalRefreshTimer); modalRefreshTimer = null; }
+  modalBox.innerHTML = `
+    <div class="modal-head">
+      <div class="modal-title">Delete — ${escapeHtml(displayName)}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-meta">machine_id: ${escapeHtml(machineId)}</div>
+    <p style="font-size:12.5px;line-height:1.6;color:var(--text);margin:0 0 16px;">
+      This unsubscribes the dashboard from the topic and removes it from the registry.
+      The gateway keeps publishing to AWS IoT either way — nothing on the device or in
+      AWS is touched. You can re-add the same topic at any time.
+    </p>
+    <button class="modal-submit-btn" id="deleteConfirmBtn" onclick="submitDeleteTopic()">Yes, remove this topic</button>
+    <div class="modal-error" id="deleteError"></div>
+  `;
+}
+
+async function submitDeleteTopic() {
+  const { machineId } = modalCtx;
+  const errBox = document.getElementById('deleteError');
+  const btn = document.getElementById('deleteConfirmBtn');
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Removing…';
+  try {
+    const res = await fetch('/api/machine-topics/' + encodeURIComponent(machineId), { method: 'DELETE' });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Request failed');
+    closeModal();
+    refreshFleet();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Yes, remove this topic';
+  }
+}
+
+function openAddTopicModal(gatewayName) {
+  modalOverlay.classList.add('open');
+  modalBox.innerHTML = `
+    <div class="modal-head">
+      <div class="modal-title">Link MQTT topic — ${gatewayName}</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-form-row">
+      <label>Display Name</label>
+      <input type="text" id="addTopicDisplayName" value="${gatewayName}">
+    </div>
+    <div class="modal-form-row">
+      <label>MQTT Topic</label>
+      <input type="text" id="addTopicTopic" placeholder="e.g. HyperGrid/DP_XXX_001/GW_XXX_001_123456/data">
+      <div class="modal-hint">Machine ID is generated automatically — no need to type one.</div>
+    </div>
+    <button class="modal-submit-btn" id="addTopicSubmitBtn" onclick="submitAddTopic('${gatewayName.replace(/'/g, "\\'")}')">Link Topic</button>
+    <div class="modal-error" id="addTopicError"></div>
+  `;
+}
+
+async function submitAddTopic(gatewayName) {
+  const displayName = document.getElementById('addTopicDisplayName').value.trim();
+  const topic = document.getElementById('addTopicTopic').value.trim();
+  const errBox = document.getElementById('addTopicError');
+  const btn = document.getElementById('addTopicSubmitBtn');
+  errBox.style.display = 'none';
+
+  if (!displayName || !topic) {
+    errBox.textContent = 'Both fields are required.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Linking…';
+  try {
+    const res = await fetch('/api/machine-topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: displayName, mqtt_topic: topic, vpn_gateway_name: gatewayName }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Request failed');
+    closeModal();
+    refreshFleet();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Link Topic';
+  }
 }
 
 async function refreshAll() {

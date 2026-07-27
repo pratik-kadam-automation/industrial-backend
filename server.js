@@ -3,7 +3,16 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
-const { startMqttClient, getLatestMachineData } = require('./mqtt-machine');
+const {
+    startMqttClient,
+    getLatestMachineData,
+    getMachineHistory,
+    clearMachineHistory,
+    subscribeTopic,
+    unsubscribeTopic,
+    retargetTopic,
+    HISTORY_LIMIT,
+} = require('./mqtt-machine');
 const { startProductionTracker } = require('./productionTracker');
 const dbClient = new Client({
     host: process.env.DB_HOST,
@@ -49,7 +58,14 @@ function connectToDatabase() {
         });
 }
 connectToDatabase();
-startMqttClient();
+// Intentionally NOT chained after DB connect succeeds — MQTT must keep
+// working even if Postgres is ever down (it did before DB existed at
+// all). The topic-loading step inside startMqttClient already handles
+// a not-yet-connected dbClient gracefully via try/catch, logging a
+// warning rather than crashing. Worst case if DB is genuinely down:
+// MQTT still connects to AWS fine, just has no topics to subscribe to
+// until DB comes back and the service restarts.
+startMqttClient(dbClient);
 function parseVpnStatus(logPath) {
     return new Promise((resolve, reject) => {
         fs.readFile(logPath, 'utf8', (err, data) => {
@@ -207,7 +223,173 @@ const server = http.createServer(async (req, res) => {
             return res.end(JSON.stringify({ error: 'Invalid JSON body' }));
         }
     }
-    // Dashboard reads the latest SAP status here.
+    // Dashboard reads/edits the machine-topic registry here — no
+    // redeploy needed to add a new gateway, matches the same
+    // philosophy as the auto-detecting VPN Fleet.
+    if (req.url === '/api/machine-topics' && req.method === 'GET') {
+        try {
+            const result = await dbClient.query(
+                'SELECT id, machine_id, display_name, mqtt_topic, vpn_gateway_name FROM machine_topics ORDER BY display_name'
+            );
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ machines: result.rows }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'DB query failed', detail: err.message }));
+        }
+    }
+    if (req.url === '/api/machine-topics' && req.method === 'POST') {
+        try {
+            const body = await readJsonBody(req);
+            const { display_name, mqtt_topic, vpn_gateway_name } = body;
+            if (!display_name || !mqtt_topic) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'display_name and mqtt_topic are required' }));
+            }
+
+            // machine_id is auto-generated, never typed by hand — removes
+            // the whole "same id can't be used" problem entirely. Slug of
+            // the display name plus a short random suffix; retried on the
+            // astronomically unlikely chance of a collision.
+            const slug = display_name.toLowerCase().trim()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 40) || 'machine';
+
+            let machineId;
+            let inserted = false;
+            let lastErr = null;
+            for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
+                const suffix = Math.random().toString(36).slice(2, 6); // 4 random chars
+                machineId = `${slug}_${suffix}`;
+                try {
+                    await dbClient.query(
+                        `INSERT INTO machine_topics (machine_id, display_name, mqtt_topic, vpn_gateway_name)
+                         VALUES ($1, $2, $3, $4)`,
+                        [machineId, display_name, mqtt_topic, vpn_gateway_name || null]
+                    );
+                    inserted = true;
+                } catch (err) {
+                    lastErr = err;
+                    // machine_id collision (vanishingly rare) -> retry with a new suffix.
+                    // mqtt_topic collision -> that topic's already tracked, stop and say so clearly.
+                    if (err.constraint && err.constraint.includes('mqtt_topic')) {
+                        res.writeHead(409, { 'Content-Type': 'application/json' });
+                        return res.end(JSON.stringify({ error: 'That MQTT topic is already being tracked under a different machine.' }));
+                    }
+                    // otherwise (machine_id collision) fall through and retry
+                }
+            }
+            if (!inserted) {
+                throw lastErr || new Error('Could not generate a unique machine_id after 5 attempts');
+            }
+
+            subscribeTopic(mqtt_topic, machineId); // live, no restart needed
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ added: true, machine_id: machineId }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Could not add machine', detail: err.message }));
+        }
+    }
+    // Edit an existing entry. The DB update is the easy half -- the part
+    // that matters is that changing mqtt_topic must also move the live
+    // MQTT subscription, otherwise we'd keep receiving the OLD topic
+    // until the next service restart. machine_id is deliberately NOT
+    // editable: it's auto-generated and the caches key off it.
+    if (req.url.startsWith('/api/machine-topics/') && req.method === 'PUT') {
+        try {
+            const machineId = decodeURIComponent(req.url.split('/api/machine-topics/')[1].split('?')[0]);
+            const body = await readJsonBody(req);
+            const displayName = (body.display_name || '').trim();
+            const mqttTopic = (body.mqtt_topic || '').trim();
+            const vpnGatewayName = body.vpn_gateway_name === undefined
+                ? undefined
+                : (body.vpn_gateway_name || null);
+
+            if (!displayName || !mqttTopic) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'display_name and mqtt_topic are required' }));
+            }
+
+            const existing = await dbClient.query(
+                'SELECT mqtt_topic, vpn_gateway_name FROM machine_topics WHERE machine_id = $1',
+                [machineId]
+            );
+            if (!existing.rows[0]) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'No machine with that id' }));
+            }
+            const oldTopic = existing.rows[0].mqtt_topic;
+            const newGateway = vpnGatewayName === undefined
+                ? existing.rows[0].vpn_gateway_name
+                : vpnGatewayName;
+
+            try {
+                await dbClient.query(
+                    `UPDATE machine_topics
+                     SET display_name = $1, mqtt_topic = $2, vpn_gateway_name = $3
+                     WHERE machine_id = $4`,
+                    [displayName, mqttTopic, newGateway, machineId]
+                );
+            } catch (err) {
+                if (err.constraint && err.constraint.includes('mqtt_topic')) {
+                    res.writeHead(409, { 'Content-Type': 'application/json' });
+                    return res.end(JSON.stringify({ error: 'That MQTT topic is already being tracked under a different machine.' }));
+                }
+                throw err;
+            }
+
+            // Only touch MQTT if the topic actually changed -- a pure
+            // rename must not interrupt a live feed.
+            if (oldTopic !== mqttTopic) {
+                retargetTopic(machineId, oldTopic, mqttTopic); // live, no restart needed
+                clearMachineHistory(machineId); // old buffer belongs to a different feed
+                console.log(`Topic for ${machineId} changed: ${oldTopic} -> ${mqttTopic}`);
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({
+                updated: true,
+                machine_id: machineId,
+                topic_changed: oldTopic !== mqttTopic,
+            }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Could not update machine', detail: err.message }));
+        }
+    }
+    // Rolling in-memory history (last N messages) for one machine --
+    // MQTTX-style: newest first, each with its own arrival timestamp.
+    // Reads from RAM only, never the DB.
+    if (req.url.startsWith('/api/machine-history/') && req.method === 'GET') {
+        const machineId = decodeURIComponent(req.url.split('/api/machine-history/')[1].split('?')[0]);
+        const history = getMachineHistory(machineId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+            machineId,
+            limit: HISTORY_LIMIT,
+            count: history.length,
+            messages: history,
+        }));
+    }
+    if (req.url.startsWith('/api/machine-topics/') && req.method === 'DELETE') {
+        try {
+            const machineId = decodeURIComponent(req.url.split('/api/machine-topics/')[1]);
+            const result = await dbClient.query(
+                'DELETE FROM machine_topics WHERE machine_id = $1 RETURNING mqtt_topic',
+                [machineId]
+            );
+            if (result.rows[0]) {
+                unsubscribeTopic(result.rows[0].mqtt_topic); // live, no restart needed
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ deleted: result.rowCount > 0 }));
+        } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Could not delete machine', detail: err.message }));
+        }
+    }
     if (req.url === '/api/sap/sync-status' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         if (!lastSapReport) {
@@ -216,8 +398,15 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify(lastSapReport));
     }
     if (req.url === '/api/machine-status/demo') {
+        // Alias kept for backward compatibility with the current
+        // frontend, which still hardcodes this path for Venus.
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(getLatestMachineData()));
+        return res.end(JSON.stringify(getLatestMachineData('venus1')));
+    }
+    if (req.url.startsWith('/api/machine-status/') && req.url !== '/api/machine-status/demo') {
+        const machineId = decodeURIComponent(req.url.split('/api/machine-status/')[1].split('?')[0]);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(getLatestMachineData(machineId)));
     }
     if (req.url.startsWith('/api/production/current')) {
         try {
