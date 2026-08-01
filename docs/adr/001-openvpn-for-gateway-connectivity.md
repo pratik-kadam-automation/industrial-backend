@@ -21,9 +21,11 @@ a deliberate benefit, not a side effect.
 ## Consequences
 + Zero licence cost; full control over routing and certs
 + Deep working knowledge of VPN internals
++ Onboarding automated — ~30 seconds marginal cost per gateway
 - We own all uptime and troubleshooting
-- Manual CCD management does not scale past ~20 gateways
+- No per-tunnel visibility; diagnosis is manual and does not scale
 
 ## Revisit when
-Gateway count passes 20, OR gateway onboarding takes
-more than 30 minutes of manual work.
+VPN troubleshooting exceeds 4 hours in any month,
+OR concurrent tunnels exceed the capacity of one VM,
+OR a client contractually requires vendor-supported connectivity.
