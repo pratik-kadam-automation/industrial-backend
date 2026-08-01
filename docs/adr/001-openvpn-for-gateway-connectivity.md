@@ -6,8 +6,10 @@ Deciders: P. Kadam
 
 ## Context
 Proof-of-concept stage. Small number of client sites.
-Budget constrained. Team of one. Building internal
-capability in networking is itself a goal.
+Budget constrained. Team of one. Oracle Cloud free tier
+already provisioned as the hub. OpenVPN was chosen directly
+without trialling alternatives; Tailscale and commercial
+appliances were considered only in principle.
 
 ## Options
 A. OpenVPN self-hosted  - free, full control, we operate it
