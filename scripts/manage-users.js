@@ -8,13 +8,14 @@
  *
  *   node scripts/manage-users.js add pratik
  *   node scripts/manage-users.js passwd ela
+ *   node scripts/manage-users.js reset ela      # admin: temp password
  *   node scripts/manage-users.js list
  *   node scripts/manage-users.js disable tarun
  *   node scripts/manage-users.js enable tarun
  */
 
 require('dotenv').config();
-const readline = require('readline');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const { hashPassword } = require('../auth');
 
@@ -79,8 +80,14 @@ async function ensureTable() {
             password_hash TEXT        NOT NULL,
             is_active     BOOLEAN     NOT NULL DEFAULT true,
             created_at    TIMESTAMP   NOT NULL DEFAULT now(),
-            last_login    TIMESTAMP
+            last_login    TIMESTAMP,
+            must_change_password BOOLEAN NOT NULL DEFAULT false
         )
+    `);
+    // Existing installs predate this column; add it idempotently.
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false
     `);
     /* Audit trail for certificate issuance. Knowing a cert exists is not
        enough -- with three people provisioning gateways you need to know
@@ -101,7 +108,7 @@ async function main() {
     const [cmd, username] = process.argv.slice(2);
 
     if (!cmd) {
-        console.log('usage: manage-users.js <add|passwd|list|disable|enable> [username]');
+        console.log('usage: manage-users.js <add|passwd|reset|list|disable|enable> [username]');
         process.exit(1);
     }
 
@@ -109,7 +116,7 @@ async function main() {
 
     if (cmd === 'list') {
         const q = await pool.query(
-            'SELECT username, is_active, created_at, last_login FROM users ORDER BY username'
+            'SELECT username, is_active, created_at, last_login, must_change_password FROM users ORDER BY username'
         );
         if (!q.rows.length) {
             console.log('No users yet. Create one:  node scripts/manage-users.js add <name>');
@@ -119,6 +126,7 @@ async function main() {
                 active: r.is_active,
                 created: r.created_at.toISOString().slice(0, 10),
                 last_login: r.last_login ? r.last_login.toISOString().slice(0, 16) : 'never',
+                must_change: r.must_change_password,
             })));
         }
         await pool.end();
@@ -138,6 +146,38 @@ async function main() {
             [active, uname]
         );
         console.log(q.rowCount ? `${uname}: is_active = ${active}` : `No such user: ${uname}`);
+        await pool.end();
+        return;
+    }
+
+    /*
+     * Admin reset. Generates a temporary password, prints it once, and
+     * flags the account so the user is forced to choose their own on next
+     * login. Printing it is the point -- the admin has to relay it out of
+     * band -- but it means it lands in scrollback, hence the single-use
+     * flag: the temp password is worthless the moment they log in.
+     */
+    if (cmd === 'reset') {
+        const temp = crypto.randomBytes(9).toString('base64')
+            .replace(/[+/=]/g, '').slice(0, 12);
+        const hash = await hashPassword(temp);
+        const q = await pool.query(
+            `UPDATE users
+               SET password_hash = $1, must_change_password = true, is_active = true
+             WHERE username = $2
+             RETURNING username`,
+            [hash, uname]
+        );
+        if (!q.rowCount) {
+            console.log(`No such user: ${uname}`);
+        } else {
+            console.log('');
+            console.log(`  Temporary password for ${uname}:  ${temp}`);
+            console.log('');
+            console.log('  Relay this to them directly. They must set their own');
+            console.log('  password at first login -- this one stops working then.');
+            console.log('');
+        }
         await pool.end();
         return;
     }
@@ -177,7 +217,8 @@ async function main() {
         }
     } else {
         const q = await pool.query(
-            'UPDATE users SET password_hash = $1 WHERE username = $2 RETURNING username',
+            `UPDATE users SET password_hash = $1, must_change_password = false
+              WHERE username = $2 RETURNING username`,
             [hash, uname]
         );
         console.log(q.rowCount ? `Password updated: ${uname}` : `No such user: ${uname}`);

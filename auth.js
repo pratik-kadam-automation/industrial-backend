@@ -248,7 +248,8 @@ async function handleLogin(req, res, pool, body) {
     let row = null;
     try {
         const q = await pool.query(
-            'SELECT username, password_hash, is_active FROM users WHERE username = $1',
+            `SELECT username, password_hash, is_active, must_change_password
+               FROM users WHERE username = $1`,
             [username]
         );
         row = q.rows[0] || null;
@@ -279,7 +280,11 @@ async function handleLogin(req, res, pool, body) {
         'Content-Type': 'application/json',
         'Set-Cookie': sessionCookie(createToken(username)),
     });
-    res.end(JSON.stringify({ ok: true, username }));
+    res.end(JSON.stringify({
+        ok: true,
+        username,
+        mustChangePassword: !!row.must_change_password,
+    }));
 }
 
 /* A fixed valid-format hash so the unknown-user path costs the same
@@ -297,10 +302,94 @@ function handleLogout(req, res) {
     res.end(JSON.stringify({ ok: true }));
 }
 
-function handleWhoami(req, res) {
+async function handleWhoami(req, res, pool) {
     const user = getUser(req);
+    if (!user) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ authenticated: false, username: null }));
+    }
+    /* Read the flag live rather than trusting the token. An admin may
+       have reset this account after the session was issued, and a stale
+       token should not let someone skip the forced change. */
+    let mustChange = false;
+    try {
+        const q = await pool.query(
+            'SELECT must_change_password, is_active FROM users WHERE username = $1',
+            [user.username]
+        );
+        const row = q.rows[0];
+        if (!row || !row.is_active) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ authenticated: false, username: null }));
+        }
+        mustChange = !!row.must_change_password;
+    } catch (err) {
+        console.warn('whoami db error:', err.message);
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ authenticated: !!user, username: user ? user.username : null }));
+    res.end(JSON.stringify({
+        authenticated: true,
+        username: user.username,
+        mustChangePassword: mustChange,
+    }));
+}
+
+/**
+ * POST /api/change-password  { currentPassword, newPassword }
+ * Any logged-in user can change their own. Verifying the current
+ * password matters even inside a session: it stops someone who walks up
+ * to an unlocked laptop from locking the real owner out.
+ */
+async function handleChangePassword(req, res, pool, body) {
+    const user = getUser(req);
+    if (!user) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Not logged in.' }));
+    }
+
+    const current = String(body.currentPassword || '');
+    const next = String(body.newPassword || '');
+
+    if (next.length < 10) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'New password must be at least 10 characters.' }));
+    }
+    if (next === current) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'New password must differ from the current one.' }));
+    }
+
+    try {
+        const q = await pool.query(
+            'SELECT password_hash FROM users WHERE username = $1 AND is_active = true',
+            [user.username]
+        );
+        const row = q.rows[0];
+        if (!row || !(await verifyPassword(current, row.password_hash))) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Current password is incorrect.' }));
+        }
+
+        const hash = await hashPassword(next);
+        await pool.query(
+            `UPDATE users SET password_hash = $1, must_change_password = false
+              WHERE username = $2`,
+            [hash, user.username]
+        );
+        console.log(`password changed: ${user.username}`);
+
+        /* Reissue the cookie so the session clock restarts from the
+           change rather than expiring at the old moment. */
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': sessionCookie(createToken(user.username)),
+        });
+        res.end(JSON.stringify({ ok: true }));
+    } catch (err) {
+        console.error('change-password error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Could not change password.' }));
+    }
 }
 
 module.exports = {
@@ -313,5 +402,6 @@ module.exports = {
     handleLogin,
     handleLogout,
     handleWhoami,
+    handleChangePassword,
     COOKIE_NAME,
 };
