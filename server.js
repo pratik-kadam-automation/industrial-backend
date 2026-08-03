@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 const auth = require('./auth');
+const certs = require('./certs');
 const {
     startMqttClient,
     getLatestMachineData,
@@ -163,6 +164,35 @@ const server = http.createServer(async (req, res) => {
 
     if (req.url === '/api/logout' && req.method === 'POST') {
         return auth.handleLogout(req, res);
+    }
+
+    // ---- certificate portal (session required) -----------------------
+    // The dashboard at / stays open; only these routes and /certs check
+    // for a session. Guarding happens inside certs.js via requireAuth so
+    // a missed check here cannot silently expose them.
+    if (req.url === '/api/certs/generate' && req.method === 'POST') {
+        try {
+            return await certs.handleGenerate(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/certs/list' && req.method === 'GET') {
+        return await certs.handleList(req, res, dbClient);
+    }
+
+    if (req.url.startsWith('/api/certs/download/') && req.method === 'GET') {
+        return certs.handleDownload(req, res, req.url.split('?')[0]);
+    }
+
+    if (req.url === '/certs' || req.url === '/certs.html') {
+        return fs.readFile(path.join(__dirname, 'certs.html'), (err, content) => {
+            if (err) { res.writeHead(500); return res.end('Error loading certs.html'); }
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(content);
+        });
     }
 
     if (req.url === '/api/whoami') {
