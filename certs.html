@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gateway Certificates — eLT Edge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D10;
+    --panel: #12171C;
+    --panel-2: #161C22;
+    --border: #1C242C;
+    --text: #DCE6EE;
+    --muted: #7C8894;
+    --cyan: #4FD1C5;
+    --amber: #F2B84B;
+    --coral: #EF6461;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 24px 20px 60px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 26px;
+    flex-wrap: wrap;
+  }
+  .brand-mark {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+
+  .head-right { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+  .who { font-family: var(--mono); color: var(--muted); }
+  .who strong { color: var(--cyan); font-weight: 500; }
+
+  .btn {
+    background: var(--cyan);
+    color: #06110F;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 13px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--cyan); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .row { margin-bottom: 15px; }
+  .row label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .row input, .row select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13.5px;
+  }
+  .row input:focus, .row select:focus { outline: none; border-color: var(--cyan); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+  .msg { font-size: 12.5px; margin-top: 12px; display: none; line-height: 1.5; }
+  .msg.err { color: var(--coral); display: block; }
+  .msg.ok  { color: var(--cyan);  display: block; }
+
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .mode-tab {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .mode-tab.active {
+    background: var(--cyan);
+    color: var(--bg);
+    border-color: var(--cyan);
+    font-weight: 600;
+  }
+
+  /* ---------- result / download list ---------- */
+  .result-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .result-name { font-size: 17px; font-weight: 600; }
+  .result-ip {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 1px 7px;
+    border-radius: 3px;
+  }
+
+  .file-list { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+  }
+  .file-meta { flex: 1; min-width: 0; }
+  .file-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    word-break: break-all;
+  }
+  .file-desc { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .file-dl {
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    font-family: var(--sans);
+  }
+  .file-dl:hover { background: rgba(79,209,197,0.12); }
+  .file-item.bundle { border-color: var(--amber); }
+  .file-item.bundle .file-dl { border-color: var(--amber); color: var(--amber); }
+  .file-item.bundle .file-dl:hover { background: rgba(242,184,75,0.12); }
+
+  /* ---------- gateway setup instructions ---------- */
+  .setup {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .setup h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .setup table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .setup td { padding: 7px 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+  .setup td:first-child { color: var(--muted); width: 42%; padding-right: 12px; }
+  .setup td:last-child { font-family: var(--mono); font-size: 12px; }
+  .setup tr:last-child td { border-bottom: none; }
+
+  .history-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    flex-wrap: wrap;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-name { font-family: var(--mono); font-weight: 500; }
+  .history-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .history-load {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--cyan);
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+    padding: 2px 4px;
+  }
+
+  .empty {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+  .back-link:hover { color: var(--cyan); }
+  .hidden { display: none !important; }
+
+  .warn-note {
+    font-size: 11.5px;
+    color: var(--amber);
+    background: rgba(242,184,75,0.07);
+    border: 1px solid rgba(242,184,75,0.3);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <span class="brand-mark">ELT · SLOGIC</span>
+      <h1>Gateway Certificates</h1>
+      <div class="sub">provision an M300 for the VPN fleet</div>
+    </div>
+    <div class="head-right hidden" id="headRight">
+      <span class="who">signed in as <strong id="whoName">—</strong></span>
+      <button class="btn-ghost" onclick="doLogout()">Log out</button>
+    </div>
+  </div>
+
+  <!-- ================= LOGIN ================= -->
+  <div class="card hidden" id="loginCard">
+    <h2>Sign in</h2>
+    <div class="row">
+      <label for="lUser">Username</label>
+      <input type="text" id="lUser" autocomplete="username" autocapitalize="none" spellcheck="false">
+    </div>
+    <div class="row">
+      <label for="lPass">Password</label>
+      <input type="password" id="lPass" autocomplete="current-password">
+    </div>
+    <button class="btn" id="lBtn" onclick="doLogin()">Sign in</button>
+    <div class="msg" id="lMsg"></div>
+    <a class="back-link" href="/">← back to dashboard</a>
+  </div>
+
+  <!-- ============ FORCED PASSWORD CHANGE ============ -->
+  <div class="card hidden" id="changeCard">
+    <h2>Set your password</h2>
+    <p class="hint" style="margin-bottom:16px;">
+      Your account was reset by an administrator. Choose your own password
+      to continue — the temporary one stops working once you do.
+    </p>
+    <div class="row">
+      <label for="cCur">Current (temporary) password</label>
+      <input type="password" id="cCur" autocomplete="current-password">
+    </div>
+    <div class="row">
+      <label for="cNew">New password</label>
+      <input type="password" id="cNew" autocomplete="new-password">
+      <div class="hint">At least 10 characters.</div>
+    </div>
+    <div class="row">
+      <label for="cNew2">Confirm new password</label>
+      <input type="password" id="cNew2" autocomplete="new-password">
+    </div>
+    <button class="btn" id="cBtn" onclick="doChange()">Save password</button>
+    <div class="msg" id="cMsg"></div>
+  </div>
+
+  <!-- ================= PORTAL ================= -->
+  <div id="portal" class="hidden">
+
+    <div class="card">
+      <h2>Generate a gateway certificate</h2>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabClient" onclick="setMode('client')">Next for a client</button>
+        <button class="mode-tab" id="tabName" onclick="setMode('name')">Specific name</button>
+      </div>
+
+      <div id="modeClient">
+        <div class="row">
+          <label for="gClient">Client</label>
+          <input type="text" id="gClient" list="clientList" placeholder="gloster" autocapitalize="none" spellcheck="false">
+          <datalist id="clientList">
+            <option value="gloster"></option>
+            <option value="venus"></option>
+            <option value="rubymill"></option>
+            <option value="hlmando"></option>
+            <option value="ashoklayland"></option>
+          </datalist>
+          <div class="hint">
+            The next number is chosen automatically — if gloster1–12 exist,
+            this creates gloster13. A free VPN IP is allocated at the same time.
+          </div>
+        </div>
+      </div>
+
+      <div id="modeName" class="hidden">
+        <div class="row">
+          <label for="gName">Gateway name</label>
+          <input type="text" id="gName" placeholder="gloster13" autocapitalize="none" spellcheck="false">
+          <div class="hint">
+            Letters, digits, hyphen and underscore only. This becomes the
+            certificate name and the ccd/ filename — they must match exactly.
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" id="gBtn" onclick="doGenerate()">Generate certificate</button>
+      <div class="msg" id="gMsg"></div>
+    </div>
+
+    <!-- ---------- result ---------- -->
+    <div class="card hidden" id="resultCard">
+      <h2>Files</h2>
+      <div class="result-head">
+        <span class="result-name" id="rName">—</span>
+        <span class="result-ip" id="rIp">—</span>
+      </div>
+      <div class="hint">Download each file, or take the single bundle at the bottom.</div>
+
+      <div class="file-list" id="fileList"></div>
+
+      <div class="setup">
+        <h3>M300 settings for this gateway</h3>
+        <table>
+          <tr><td>Network → VPN → OpenVPN</td><td>enable</td></tr>
+          <tr><td>Mode</td><td>Client</td></tr>
+          <tr><td>Server address</td><td id="sHost">slogic-iiot.duckdns.org</td></tr>
+          <tr><td>Port / protocol</td><td>1194 / UDP</td></tr>
+          <tr><td>Auth mode</td><td>Certificate (TLS)</td></tr>
+          <tr><td>CA certificate</td><td>ca.crt</td></tr>
+          <tr><td>Client certificate</td><td id="sCrt">—</td></tr>
+          <tr><td>Client key</td><td id="sKey">—</td></tr>
+          <tr><td>TLS-auth key</td><td>ta.key</td></tr>
+          <tr><td>TLS-auth direction</td><td>1</td></tr>
+          <tr><td>Cipher</td><td>AES-256-GCM</td></tr>
+          <tr><td>Expected VPN IP</td><td id="sIp">—</td></tr>
+        </table>
+        <div class="warn-note">
+          The .key file is the gateway's private key — it is issued once and
+          cannot be recovered from the server afterwards. If it leaks, revoke
+          the certificate rather than reusing it.
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- history ---------- -->
+    <div class="card">
+      <h2>Recently issued</h2>
+      <div id="historyList"><div class="empty">Loading…</div></div>
+      <a class="back-link" href="/">← back to dashboard</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* The dashboard at / is intentionally open; only this page requires a
+   session. Everything below assumes the cookie is httpOnly, so the
+   session is never read from JS -- state comes from /api/whoami. */
+
+let MODE = 'client';
+
+const FILE_DESC = {
+  'ca.crt': 'Certificate authority — proves the server is yours',
+  'ta.key': 'TLS-auth shared key — set direction 1 on the gateway',
+};
+
+function describe(fname, gwName) {
+  if (FILE_DESC[fname]) return FILE_DESC[fname];
+  if (fname === gwName + '.crt') return 'Client certificate — identifies this gateway';
+  if (fname === gwName + '.key') return 'Private key — issued once, keep it secret';
+  if (fname === gwName + '.ovpn') return 'All four files combined — upload this alone if the gateway accepts it';
+  return '';
+}
+
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+function setMsg(id, text, kind) {
+  const el = document.getElementById(id);
+  el.textContent = text || '';
+  el.className = 'msg' + (text ? ' ' + kind : '');
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({ cache: 'no-store' }, opts || {}));
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+// ---------------------------------------------------------------- session
+
+async function refreshSession() {
+  const { data } = await api('/api/whoami');
+  if (!data.authenticated) {
+    hide('headRight'); hide('portal'); hide('changeCard');
+    show('loginCard');
+    document.getElementById('lUser').focus();
+    return;
+  }
+  document.getElementById('whoName').textContent = data.username;
+  show('headRight');
+  hide('loginCard');
+
+  if (data.mustChangePassword) {
+    hide('portal');
+    show('changeCard');
+    document.getElementById('cCur').focus();
+    return;
+  }
+  hide('changeCard');
+  show('portal');
+  loadHistory();
+}
+
+async function doLogin() {
+  const btn = document.getElementById('lBtn');
+  const username = document.getElementById('lUser').value.trim();
+  const password = document.getElementById('lPass').value;
+  if (!username || !password) return setMsg('lMsg', 'Enter both fields.', 'err');
+
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  setMsg('lMsg', '', '');
+  const { ok, data } = await api('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  btn.disabled = false; btn.textContent = 'Sign in';
+
+  if (!ok) return setMsg('lMsg', data.error || 'Sign-in failed.', 'err');
+  document.getElementById('lPass').value = '';
+  refreshSession();
+}
+
+async function doLogout() {
+  await api('/api/logout', { method: 'POST' });
+  document.getElementById('lUser').value = '';
+  document.getElementById('lPass').value = '';
+  hide('resultCard');
+  refreshSession();
+}
+
+async function doChange() {
+  const btn = document.getElementById('cBtn');
+  const cur = document.getElementById('cCur').value;
+  const nw  = document.getElementById('cNew').value;
+  const nw2 = document.getElementById('cNew2').value;
+
+  if (nw !== nw2) return setMsg('cMsg', 'The two new passwords do not match.', 'err');
+  if (nw.length < 10) return setMsg('cMsg', 'New password must be at least 10 characters.', 'err');
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { ok, data } = await api('/api/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+  });
+  btn.disabled = false; btn.textContent = 'Save password';
+
+  if (!ok) return setMsg('cMsg', data.error || 'Could not change password.', 'err');
+  document.getElementById('cCur').value = '';
+  document.getElementById('cNew').value = '';
+  document.getElementById('cNew2').value = '';
+  setMsg('cMsg', '', '');
+  refreshSession();
+}
+
+// --------------------------------------------------------------- generate
+
+function setMode(mode) {
+  MODE = mode;
+  document.getElementById('tabClient').classList.toggle('active', mode === 'client');
+  document.getElementById('tabName').classList.toggle('active', mode === 'name');
+  document.getElementById('modeClient').classList.toggle('hidden', mode !== 'client');
+  document.getElementById('modeName').classList.toggle('hidden', mode !== 'name');
+}
+
+async function doGenerate() {
+  const btn = document.getElementById('gBtn');
+  const payload = {};
+
+  if (MODE === 'client') {
+    const c = document.getElementById('gClient').value.trim().toLowerCase();
+    if (!c) return setMsg('gMsg', 'Enter a client name.', 'err');
+    payload.client = c;
+  } else {
+    const n = document.getElementById('gName').value.trim();
+    if (!n) return setMsg('gMsg', 'Enter a gateway name.', 'err');
+    payload.name = n;
+  }
+
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setMsg('gMsg', 'Building the certificate — this takes a few seconds.', 'ok');
+
+  const { ok, data } = await api('/api/certs/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  btn.disabled = false; btn.textContent = 'Generate certificate';
+
+  if (!ok) {
+    hide('resultCard');
+    return setMsg('gMsg', (data.error || 'Generation failed.') +
+      (data.detail ? ' — ' + data.detail : ''), 'err');
+  }
+
+  setMsg('gMsg', 'Created ' + data.name + '.', 'ok');
+  renderResult(data.name, data.staticIp, data.files);
+}
+
+function renderResult(name, ip, files) {
+  document.getElementById('rName').textContent = name;
+  document.getElementById('rIp').textContent = ip || 'IP unknown';
+  document.getElementById('sCrt').textContent = name + '.crt';
+  document.getElementById('sKey').textContent = name + '.key';
+  document.getElementById('sIp').textContent = ip || '—';
+
+  const list = document.getElementById('fileList');
+  list.innerHTML = (files || []).map(f => {
+    const isBundle = f.endsWith('.ovpn');
+    const url = '/api/certs/download/' + encodeURIComponent(name) + '/' + encodeURIComponent(f);
+    return `
+      <div class="file-item ${isBundle ? 'bundle' : ''}">
+        <div class="file-meta">
+          <div class="file-name">${f}</div>
+          <div class="file-desc">${describe(f, name)}</div>
+        </div>
+        <a class="file-dl" href="${url}" download>Download</a>
+      </div>
+    `;
+  }).join('');
+
+  show('resultCard');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------------------------------------------------------------- history
+
+async function loadHistory() {
+  const box = document.getElementById('historyList');
+  const { ok, data } = await api('/api/certs/list');
+  if (!ok) { box.innerHTML = '<div class="empty">Could not load history.</div>'; return; }
+  const certs = data.certs || [];
+  if (!certs.length) {
+    box.innerHTML = '<div class="empty">Nothing issued through this portal yet.</div>';
+    return;
+  }
+  box.innerHTML = certs.map(c => `
+    <div class="history-item">
+      <span class="history-name">${c.gateway_name}</span>
+      <span class="history-meta">${c.static_ip || '—'} · ${c.issued_by} · ${new Date(c.issued_at).toLocaleDateString()}</span>
+      <button class="history-load"
+        onclick='renderResult(${JSON.stringify(c.gateway_name)}, ${JSON.stringify(c.static_ip)}, ${JSON.stringify(c.files || [])})'>
+        files →
+      </button>
+    </div>
+  `).join('');
+}
+
+// ------------------------------------------------------------------ init
+
+['lPass', 'lUser'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+document.getElementById('cNew2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doChange();
+});
+
+refreshSession();
+</script>
+</body>
+</html>
