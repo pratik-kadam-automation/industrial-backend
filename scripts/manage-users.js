@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/*
+ * scripts/manage-users.js — create, update, list, and disable dashboard users.
+ *
+ * Passwords are read from a TTY prompt with echo off rather than taken as
+ * an argv value. Arguments land in shell history and in `ps` output, both
+ * of which are readable by anyone else on the box.
+ *
+ *   node scripts/manage-users.js add pratik
+ *   node scripts/manage-users.js passwd ela
+ *   node scripts/manage-users.js list
+ *   node scripts/manage-users.js disable tarun
+ *   node scripts/manage-users.js enable tarun
+ */
+
+require('dotenv').config();
+const readline = require('readline');
+const { Pool } = require('pg');
+const { hashPassword } = require('../auth');
+
+const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+});
+
+function promptHidden(question) {
+    return new Promise((resolve) => {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+        });
+        // Suppress echo by swallowing the output writes while typing.
+        const onData = (char) => {
+            if (['\n', '\r', '\u0004'].includes(char.toString())) {
+                process.stdin.removeListener('data', onData);
+            } else {
+                readline.moveCursor(process.stdout, -1000, 0);
+                readline.clearLine(process.stdout, 1);
+                process.stdout.write(question);
+            }
+        };
+        process.stdin.on('data', onData);
+        rl.question(question, (answer) => {
+            rl.close();
+            process.stdout.write('\n');
+            resolve(answer);
+        });
+    });
+}
+
+async function ensureTable() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id            SERIAL PRIMARY KEY,
+            username      VARCHAR(50) NOT NULL UNIQUE,
+            password_hash TEXT        NOT NULL,
+            is_active     BOOLEAN     NOT NULL DEFAULT true,
+            created_at    TIMESTAMP   NOT NULL DEFAULT now(),
+            last_login    TIMESTAMP
+        )
+    `);
+    /* Audit trail for certificate issuance. Knowing a cert exists is not
+       enough -- with three people provisioning gateways you need to know
+       who minted which one and when. */
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS cert_audit (
+            id           SERIAL PRIMARY KEY,
+            gateway_name VARCHAR(100) NOT NULL,
+            static_ip    VARCHAR(45),
+            issued_by    VARCHAR(50)  NOT NULL,
+            issued_at    TIMESTAMP    NOT NULL DEFAULT now(),
+            note         TEXT
+        )
+    `);
+}
+
+async function main() {
+    const [cmd, username] = process.argv.slice(2);
+
+    if (!cmd) {
+        console.log('usage: manage-users.js <add|passwd|list|disable|enable> [username]');
+        process.exit(1);
+    }
+
+    await ensureTable();
+
+    if (cmd === 'list') {
+        const q = await pool.query(
+            'SELECT username, is_active, created_at, last_login FROM users ORDER BY username'
+        );
+        if (!q.rows.length) {
+            console.log('No users yet. Create one:  node scripts/manage-users.js add <name>');
+        } else {
+            console.table(q.rows.map(r => ({
+                username: r.username,
+                active: r.is_active,
+                created: r.created_at.toISOString().slice(0, 10),
+                last_login: r.last_login ? r.last_login.toISOString().slice(0, 16) : 'never',
+            })));
+        }
+        await pool.end();
+        return;
+    }
+
+    if (!username) {
+        console.error(`'${cmd}' needs a username.`);
+        process.exit(1);
+    }
+    const uname = username.trim().toLowerCase();
+
+    if (cmd === 'disable' || cmd === 'enable') {
+        const active = cmd === 'enable';
+        const q = await pool.query(
+            'UPDATE users SET is_active = $1 WHERE username = $2 RETURNING username',
+            [active, uname]
+        );
+        console.log(q.rowCount ? `${uname}: is_active = ${active}` : `No such user: ${uname}`);
+        await pool.end();
+        return;
+    }
+
+    if (cmd !== 'add' && cmd !== 'passwd') {
+        console.error(`Unknown command: ${cmd}`);
+        process.exit(1);
+    }
+
+    const pw1 = await promptHidden(`Password for ${uname}: `);
+    if (pw1.length < 10) {
+        console.error('Too short — use at least 10 characters.');
+        process.exit(1);
+    }
+    const pw2 = await promptHidden('Confirm: ');
+    if (pw1 !== pw2) {
+        console.error('Passwords do not match.');
+        process.exit(1);
+    }
+
+    const hash = await hashPassword(pw1);
+
+    if (cmd === 'add') {
+        try {
+            await pool.query(
+                'INSERT INTO users (username, password_hash) VALUES ($1, $2)',
+                [uname, hash]
+            );
+            console.log(`Created user: ${uname}`);
+        } catch (err) {
+            if (err.code === '23505') {
+                console.error(`User ${uname} already exists — use 'passwd' to change it.`);
+            } else {
+                console.error('Insert failed:', err.message);
+            }
+            process.exit(1);
+        }
+    } else {
+        const q = await pool.query(
+            'UPDATE users SET password_hash = $1 WHERE username = $2 RETURNING username',
+            [hash, uname]
+        );
+        console.log(q.rowCount ? `Password updated: ${uname}` : `No such user: ${uname}`);
+    }
+
+    await pool.end();
+}
+
+main().catch(err => {
+    console.error(err);
+    process.exit(1);
+});
