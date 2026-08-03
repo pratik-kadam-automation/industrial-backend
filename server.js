@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
+const auth = require('./auth');
 const {
     startMqttClient,
     getLatestMachineData,
@@ -145,6 +146,37 @@ function readJsonBody(req) {
     });
 }
 const server = http.createServer(async (req, res) => {
+
+    // ---- auth routes -------------------------------------------------
+    // Placed first so a session is established before anything below it
+    // has a chance to run. Nothing here is protected yet — these four
+    // endpoints only manage the session itself; guarding the cert portal
+    // and the write endpoints comes next.
+    if (req.url === '/api/login' && req.method === 'POST') {
+        try {
+            return await auth.handleLogin(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/logout' && req.method === 'POST') {
+        return auth.handleLogout(req, res);
+    }
+
+    if (req.url === '/api/whoami') {
+        return await auth.handleWhoami(req, res, dbClient);
+    }
+
+    if (req.url === '/api/change-password' && req.method === 'POST') {
+        try {
+            return await auth.handleChangePassword(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
     if (req.url === '/api/machine-status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const machineStatus = {
