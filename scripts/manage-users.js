@@ -26,28 +26,48 @@ const pool = new Pool({
     database: process.env.DB_NAME,
 });
 
+/*
+ * Reads a line from the TTY with echo off. The earlier readline-based
+ * approach left characters visible; this uses raw mode directly, which
+ * is the only reliable way without pulling in a dependency.
+ */
 function promptHidden(question) {
-    return new Promise((resolve) => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-        });
-        // Suppress echo by swallowing the output writes while typing.
-        const onData = (char) => {
-            if (['\n', '\r', '\u0004'].includes(char.toString())) {
-                process.stdin.removeListener('data', onData);
-            } else {
-                readline.moveCursor(process.stdout, -1000, 0);
-                readline.clearLine(process.stdout, 1);
-                process.stdout.write(question);
+    return new Promise((resolve, reject) => {
+        const stdin = process.stdin;
+        if (!stdin.isTTY) {
+            return reject(new Error('Not a TTY — run this in an interactive shell.'));
+        }
+        process.stdout.write(question);
+
+        const wasRaw = stdin.isRaw;
+        stdin.setRawMode(true);
+        stdin.resume();
+        stdin.setEncoding('utf8');
+
+        let buf = '';
+        const onData = (chunk) => {
+            for (const ch of chunk) {
+                if (ch === '\r' || ch === '\n') {
+                    stdin.removeListener('data', onData);
+                    stdin.setRawMode(wasRaw);
+                    stdin.pause();
+                    process.stdout.write('\n');
+                    return resolve(buf);
+                }
+                if (ch === '\u0003') {           // Ctrl+C
+                    stdin.setRawMode(wasRaw);
+                    process.stdout.write('\n');
+                    process.exit(130);
+                }
+                if (ch === '\u007f' || ch === '\b') {   // backspace
+                    buf = buf.slice(0, -1);
+                    continue;
+                }
+                if (ch < ' ') continue;          // ignore other control chars
+                buf += ch;
             }
         };
-        process.stdin.on('data', onData);
-        rl.question(question, (answer) => {
-            rl.close();
-            process.stdout.write('\n');
-            resolve(answer);
-        });
+        stdin.on('data', onData);
     });
 }
 
