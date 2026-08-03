@@ -488,19 +488,30 @@
       <div class="setup">
         <h3>M300 settings for this gateway</h3>
         <table>
-          <tr><td>Network → VPN → OpenVPN</td><td>enable</td></tr>
-          <tr><td>Mode</td><td>Client</td></tr>
-          <tr><td>Server address</td><td id="sHost">slogic-iiot.duckdns.org</td></tr>
-          <tr><td>Port / protocol</td><td>1194 / UDP</td></tr>
-          <tr><td>Auth mode</td><td>Certificate (TLS)</td></tr>
-          <tr><td>CA certificate</td><td>ca.crt</td></tr>
+          <tr><td>Enable</td><td>checked</td></tr>
+          <tr><td>Mode / Device type</td><td>TUN</td></tr>
+          <tr><td>Protocol</td><td>UDP</td></tr>
+          <tr><td>Server address</td><td id="sHost">140.245.192.214</td></tr>
+          <tr><td>Server port</td><td>1194</td></tr>
+          <tr><td>CA certificate</td><td>upload ca.crt</td></tr>
           <tr><td>Client certificate</td><td id="sCrt">—</td></tr>
           <tr><td>Client key</td><td id="sKey">—</td></tr>
-          <tr><td>TLS-auth key</td><td>ta.key</td></tr>
+          <tr><td>TLS-auth key</td><td>upload ta.key</td></tr>
           <tr><td>TLS-auth direction</td><td>1</td></tr>
-          <tr><td>Cipher</td><td>AES-256-GCM</td></tr>
+          <tr><td>Encryption / Cipher</td><td>AES-256-GCM</td></tr>
+          <tr><td>Auth / HMAC</td><td>SHA256</td></tr>
+          <tr><td>Compression</td><td>Disabled / None</td></tr>
+          <tr><td>Verify server certificate</td><td>enabled</td></tr>
+          <tr><td>NAT / Redirect gateway</td><td>disabled</td></tr>
           <tr><td>Expected VPN IP</td><td id="sIp">—</td></tr>
         </table>
+        <div class="hint" style="margin-top:10px;">
+          The server also answers on TCP 443 and TCP 8443 for sites where
+          UDP 1194 is blocked — try those in that order if the tunnel will
+          not come up. <strong>slogic-iiot.duckdns.org</strong> resolves to
+          the same host and survives an Oracle IP change, so prefer it if
+          the gateway resolves DNS reliably.
+        </div>
         <div class="warn-note">
           The .key file is the gateway's private key — it is issued once and
           cannot be recovered from the server afterwards. If it leaks, revoke
