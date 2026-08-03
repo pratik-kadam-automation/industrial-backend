@@ -399,6 +399,16 @@
   .fleet-card.offline .fleet-card-name .dot { background: var(--coral); animation: none; box-shadow: none; }
   .fleet-card.offline .fleet-row span:last-child { color: var(--muted); }
   .fleet-card.is-demo { border-left-color: var(--amber); }
+  /* Site-facing machine name is the card title; the ccd/ gateway
+     identifier sits underneath in mono as infrastructure metadata.
+     Operators know "37 BOBBIN ST 011", not "gloster3". */
+  .fleet-card-gateway {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin: -6px 0 10px 15px;
+  }
   .fleet-badge-demo {
     font-family: var(--mono);
     font-size: 9px;
@@ -514,7 +524,8 @@
     color: var(--muted);
     margin-bottom: 6px;
   }
-  .modal-form-row input {
+  .modal-form-row input,
+  .modal-form-row select {
     width: 100%;
     background: var(--panel-2);
     border: 1px solid var(--border);
@@ -524,8 +535,29 @@
     font-family: var(--sans);
     font-size: 13.5px;
   }
-  .modal-form-row input:focus { outline: none; border-color: var(--cyan); }
+  .modal-form-row select { font-family: var(--mono); font-size: 13px; cursor: pointer; }
+  .modal-form-row input:focus,
+  .modal-form-row select:focus { outline: none; border-color: var(--cyan); }
   .modal-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  /* Divider before infrastructure-level fields — visually separates
+     "what people call it" from "what the VPN calls it". */
+  .modal-section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .modal-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
   .modal-submit-btn {
     background: var(--cyan);
     color: #06110F;
@@ -880,12 +912,13 @@
 
     <div class="fleet-note">
       Grouped by client — Laptops &amp; Demo row on top (infrastructure, not client sites),
-      one row per client below. Cyan/live cards are currently connected, red/OFFLINE cards
-      are known gateways with no active VPN session right now. <strong>Gateway UI</strong>
-      links work once the device is online and you're on the VPN. <strong>Node-RED</strong>
-      links only work on devices manually switched into "Graphical Programming" mode on
-      the M300's own web UI (not the default mode) — it'll fail on any gateway still in
-      standard edge-gateway mode, which right now is all of them.
+      one row per client below. Card titles show the machine's name on site; the mono line
+      underneath is the ccd/ gateway identifier. Cyan/live cards are currently connected,
+      red/OFFLINE cards are known gateways with no active VPN session right now.
+      <strong>Gateway UI</strong> links work once the device is online and you're on the VPN.
+      <strong>Node-RED</strong> links only work on devices manually switched into "Graphical
+      Programming" mode on the M300's own web UI (not the default mode) — it'll fail on any
+      gateway still in standard edge-gateway mode, which right now is all of them.
     </div>
 
     <div id="fleetSections">
@@ -911,6 +944,13 @@ const REFRESH_MS = 8000;
    These two arrays just control which group a name falls into. */
 const DEMO_GATEWAY_NAMES = ['demo-gateway'];
 const LAPTOP_NAMES = ['admin-laptop', 'ela-laptop', 'laptop2-oracle', 'pratik-phone'];
+
+/* Every gateway name the backend currently knows about, refreshed on
+   each fleet poll. The edit modal turns this into a dropdown so a
+   gateway name can never be typed by hand -- typing it by hand is how
+   a display name ends up in vpn_gateway_name and the card silently
+   stops matching any ccd/ file. */
+let KNOWN_GATEWAYS = [];
 
 /* Friendly display names for client groups — add entries here as
    naming becomes clearer or new clients are added. Falls back to a
@@ -1137,6 +1177,11 @@ function renderFleetCard(s, machineTopicsByGateway) {
   const nrUrl = isOnline && s.vpnIp ? `http://${s.vpnIp}:${NODE_RED_PORT}/` : null;
   const linkedMachine = machineTopicsByGateway[s.name];
 
+  /* Title is what the site calls the machine, falling back to the raw
+     gateway name for gateways with no topic linked yet. */
+  const cardTitle = linkedMachine ? linkedMachine.display_name : s.name;
+  const showGatewaySubline = !!linkedMachine && linkedMachine.display_name !== s.name;
+
   const mqttBtn = linkedMachine
     ? `<button class="fleet-btn mqtt-linked" onclick="openMqttDataModal('${linkedMachine.machine_id}', '${linkedMachine.display_name.replace(/'/g, "\\'")}')">MQTT Data →</button>`
     : `<button class="fleet-btn mqtt-add" onclick="openAddTopicModal('${s.name.replace(/'/g, "\\'")}')">+ Add Topic</button>`;
@@ -1152,10 +1197,11 @@ function renderFleetCard(s, machineTopicsByGateway) {
   return `
     <div class="fleet-card ${isOnline ? '' : 'offline'} ${isDemo ? 'is-demo' : ''}">
       <div class="fleet-card-name">
-        <span class="dot"></span>${s.name}
+        <span class="dot"></span>${escapeHtml(cardTitle)}
         ${isDemo ? '<span class="fleet-badge-demo">DEMO</span>' : ''}
         ${!isOnline ? '<span class="fleet-badge-offline">OFFLINE</span>' : ''}
       </div>
+      ${showGatewaySubline ? `<div class="fleet-card-gateway">${escapeHtml(s.name)}</div>` : ''}
       <div class="fleet-row"><span>VPN IP</span><span>${s.vpnIp || '—'}</span></div>
       <div class="fleet-row"><span>Real Address</span><span>${s.realAddress || '—'}</span></div>
       <div class="fleet-row"><span>Connected Since</span><span>${s.connectedSince || '—'}</span></div>
@@ -1173,6 +1219,12 @@ async function refreshFleet() {
       fetchJSON('/api/machine-topics').catch(() => ({ machines: [] })),
     ]);
     const sites = vpnData.sites || [];
+
+    /* Keep the dropdown source in sync with whatever ccd/ currently
+       holds -- this is the same list the cards are built from, so the
+       modal can never offer a gateway that does not exist. */
+    KNOWN_GATEWAYS = sites.map(s => s.name).sort((a, b) => a.localeCompare(b));
+
     const machineTopicsByGateway = {};
     (topicsData.machines || []).forEach(m => {
       if (m.vpn_gateway_name) machineTopicsByGateway[m.vpn_gateway_name] = m;
@@ -1607,6 +1659,24 @@ function openMqttDataModal(machineId, displayName) {
 
 /* ---------------- Edit / Delete an existing topic ---------------- */
 
+/* Builds the <option> list for the gateway dropdown. If the machine's
+   stored gateway is not in KNOWN_GATEWAYS (ccd/ file renamed, or the
+   fleet poll has not run yet) it is prepended and flagged, so opening
+   the modal can never silently reassign the machine to a different
+   gateway just because the current one was missing from the list. */
+function gatewayOptionsHtml(current) {
+  const known = KNOWN_GATEWAYS.slice();
+  const isOrphan = current && !known.includes(current);
+  const list = isOrphan ? [current, ...known] : known;
+  return [
+    `<option value=""${current ? '' : ' selected'}>— none —</option>`,
+    ...list.map(g => {
+      const label = (isOrphan && g === current) ? `${g}  (not in ccd/ — check this)` : g;
+      return `<option value="${escapeHtml(g)}"${g === current ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    })
+  ].join('');
+}
+
 async function openEditTopicModal() {
   const { machineId } = modalCtx;
   if (modalRefreshTimer) { clearInterval(modalRefreshTimer); modalRefreshTimer = null; }
@@ -1636,16 +1706,22 @@ async function openEditTopicModal() {
     <div class="modal-form-row">
       <label>Display Name</label>
       <input type="text" id="editDisplayName" value="${escapeHtml(machine.display_name)}">
+      <div class="modal-hint">What this machine is called on site — this is the card title on the fleet page.</div>
     </div>
     <div class="modal-form-row">
       <label>MQTT Topic</label>
       <input type="text" id="editTopic" value="${escapeHtml(machine.mqtt_topic)}">
       <div class="modal-hint">Changing this re-subscribes immediately — no backend restart. The buffered history is cleared, since it belongs to the old topic.</div>
     </div>
+
+    <div class="modal-section-divider">Infrastructure</div>
+
     <div class="modal-form-row">
-      <label>VPN Gateway Name</label>
-      <input type="text" id="editGateway" value="${escapeHtml(machine.vpn_gateway_name || '')}">
-      <div class="modal-hint">Must match the ccd/ filename exactly, e.g. hlmando1. Leave blank for none.</div>
+      <label>VPN Gateway</label>
+      <select id="editGateway">
+        ${gatewayOptionsHtml(machine.vpn_gateway_name || '')}
+      </select>
+      <div class="modal-hint">The ccd/ identifier for the M300 this machine sits behind — not the machine's name on site. Listed straight from the VPN server.</div>
     </div>
     <div class="modal-meta">machine_id: ${escapeHtml(machine.machine_id)} (auto-generated, not editable)</div>
     <button class="modal-submit-btn" id="editSubmitBtn" onclick="submitEditTopic()">Save Changes</button>
@@ -1736,18 +1812,20 @@ function openAddTopicModal(gatewayName) {
   modalOverlay.classList.add('open');
   modalBox.innerHTML = `
     <div class="modal-head">
-      <div class="modal-title">Link MQTT topic — ${gatewayName}</div>
+      <div class="modal-title">Link MQTT topic — ${escapeHtml(gatewayName)}</div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-form-row">
       <label>Display Name</label>
-      <input type="text" id="addTopicDisplayName" value="${gatewayName}">
+      <input type="text" id="addTopicDisplayName" value="${escapeHtml(gatewayName)}">
+      <div class="modal-hint">Replace this with the machine's name on site — it becomes the card title.</div>
     </div>
     <div class="modal-form-row">
       <label>MQTT Topic</label>
       <input type="text" id="addTopicTopic" placeholder="e.g. HyperGrid/DP_XXX_001/GW_XXX_001_123456/data">
       <div class="modal-hint">Machine ID is generated automatically — no need to type one.</div>
     </div>
+    <div class="modal-meta">VPN gateway: ${escapeHtml(gatewayName)}</div>
     <button class="modal-submit-btn" id="addTopicSubmitBtn" onclick="submitAddTopic('${gatewayName.replace(/'/g, "\\'")}')">Link Topic</button>
     <div class="modal-error" id="addTopicError"></div>
   `;
