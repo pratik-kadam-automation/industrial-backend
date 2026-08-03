@@ -9,6 +9,8 @@
  *   node scripts/manage-users.js add pratik
  *   node scripts/manage-users.js passwd ela
  *   node scripts/manage-users.js reset ela      # admin: temp password
+ *   node scripts/manage-users.js admin pratik   # grant admin
+ *   node scripts/manage-users.js unadmin ela    # revoke admin
  *   node scripts/manage-users.js list
  *   node scripts/manage-users.js disable tarun
  *   node scripts/manage-users.js enable tarun
@@ -81,13 +83,18 @@ async function ensureTable() {
             is_active     BOOLEAN     NOT NULL DEFAULT true,
             created_at    TIMESTAMP   NOT NULL DEFAULT now(),
             last_login    TIMESTAMP,
-            must_change_password BOOLEAN NOT NULL DEFAULT false
+            must_change_password BOOLEAN NOT NULL DEFAULT false,
+            is_admin      BOOLEAN     NOT NULL DEFAULT false
         )
     `);
     // Existing installs predate this column; add it idempotently.
     await pool.query(`
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false
+    `);
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false
     `);
     /* Audit trail for certificate issuance. Knowing a cert exists is not
        enough -- with three people provisioning gateways you need to know
@@ -108,7 +115,7 @@ async function main() {
     const [cmd, username] = process.argv.slice(2);
 
     if (!cmd) {
-        console.log('usage: manage-users.js <add|passwd|reset|list|disable|enable> [username]');
+        console.log('usage: manage-users.js <add|passwd|reset|admin|unadmin|list|disable|enable> [username]');
         process.exit(1);
     }
 
@@ -116,7 +123,8 @@ async function main() {
 
     if (cmd === 'list') {
         const q = await pool.query(
-            'SELECT username, is_active, created_at, last_login, must_change_password FROM users ORDER BY username'
+            `SELECT username, is_active, is_admin, created_at, last_login, must_change_password
+               FROM users ORDER BY username`
         );
         if (!q.rows.length) {
             console.log('No users yet. Create one:  node scripts/manage-users.js add <name>');
@@ -124,6 +132,7 @@ async function main() {
             console.table(q.rows.map(r => ({
                 username: r.username,
                 active: r.is_active,
+                admin: r.is_admin,
                 created: r.created_at.toISOString().slice(0, 10),
                 last_login: r.last_login ? r.last_login.toISOString().slice(0, 16) : 'never',
                 must_change: r.must_change_password,
@@ -138,6 +147,17 @@ async function main() {
         process.exit(1);
     }
     const uname = username.trim().toLowerCase();
+
+    if (cmd === 'admin' || cmd === 'unadmin') {
+        const grant = cmd === 'admin';
+        const q = await pool.query(
+            'UPDATE users SET is_admin = $1 WHERE username = $2 RETURNING username',
+            [grant, uname]
+        );
+        console.log(q.rowCount ? `${uname}: is_admin = ${grant}` : `No such user: ${uname}`);
+        await pool.end();
+        return;
+    }
 
     if (cmd === 'disable' || cmd === 'enable') {
         const active = cmd === 'enable';

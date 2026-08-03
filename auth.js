@@ -192,6 +192,36 @@ function requireAuth(req, res) {
     return null;
 }
 
+/**
+ * Guard for admin-only routes. Unlike requireAuth this hits the database
+ * every time rather than trusting the token: admin can be revoked
+ * mid-session, and a stale cookie must not keep the privilege alive.
+ */
+async function requireAdmin(req, res, dbClient) {
+    const user = getUser(req);
+    if (!user) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Authentication required' }));
+        return null;
+    }
+    try {
+        const q = await dbClient.query(
+            'SELECT is_admin, is_active FROM users WHERE username = $1',
+            [user.username]
+        );
+        const row = q.rows[0];
+        if (row && row.is_active && row.is_admin) return user;
+    } catch (err) {
+        console.error('requireAdmin db error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Authorization check failed.' }));
+        return null;
+    }
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Administrator access required.' }));
+    return null;
+}
+
 // --------------------------------------------------------- login handlers
 
 /*
@@ -312,9 +342,10 @@ async function handleWhoami(req, res, pool) {
        have reset this account after the session was issued, and a stale
        token should not let someone skip the forced change. */
     let mustChange = false;
+    let isAdmin = false;
     try {
         const q = await pool.query(
-            'SELECT must_change_password, is_active FROM users WHERE username = $1',
+            'SELECT must_change_password, is_active, is_admin FROM users WHERE username = $1',
             [user.username]
         );
         const row = q.rows[0];
@@ -323,6 +354,7 @@ async function handleWhoami(req, res, pool) {
             return res.end(JSON.stringify({ authenticated: false, username: null }));
         }
         mustChange = !!row.must_change_password;
+        isAdmin = !!row.is_admin;
     } catch (err) {
         console.warn('whoami db error:', err.message);
     }
@@ -331,6 +363,7 @@ async function handleWhoami(req, res, pool) {
         authenticated: true,
         username: user.username,
         mustChangePassword: mustChange,
+        isAdmin,
     }));
 }
 
@@ -399,6 +432,7 @@ module.exports = {
     verifyToken,
     getUser,
     requireAuth,
+    requireAdmin,
     handleLogin,
     handleLogout,
     handleWhoami,

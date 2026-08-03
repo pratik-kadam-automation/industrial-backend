@@ -260,6 +260,109 @@
   .back-link:hover { color: var(--cyan); }
   .hidden { display: none !important; }
 
+  .gw-search {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .gw-search:focus { outline: none; border-color: var(--cyan); }
+  .gw-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .gw-row:last-child { border-bottom: none; }
+  .gw-name { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .gw-ip { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .gw-warn {
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--coral);
+    border: 1px solid var(--coral);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .gw-files {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .gw-files:hover { border-color: var(--cyan); }
+  .gw-row.hidden-search { display: none; }
+
+  /* ---------- admin panel ---------- */
+  .admin-card { border-color: rgba(242,184,75,0.35); }
+  .admin-card h2 { color: var(--amber); }
+  .u-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .u-row:last-child { border-bottom: none; }
+  .u-name { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .u-tag {
+    font-size: 9px;
+    font-family: var(--mono);
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+  .u-tag.admin { color: var(--amber); border: 1px solid var(--amber); }
+  .u-tag.off   { color: var(--coral); border: 1px solid var(--coral); }
+  .u-tag.pend  { color: var(--muted); border: 1px solid var(--border); }
+  .u-meta { font-size: 10.5px; color: var(--muted); font-family: var(--mono); width: 100%; }
+  .u-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .u-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .u-btn:hover { color: var(--text); border-color: var(--cyan); }
+  .u-btn.danger:hover { color: var(--coral); border-color: var(--coral); }
+
+  .temp-box {
+    background: rgba(79,209,197,0.08);
+    border: 1px solid var(--cyan);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    display: none;
+  }
+  .temp-box.show { display: block; }
+  .temp-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .temp-pw {
+    font-family: var(--mono);
+    font-size: 19px;
+    color: var(--cyan);
+    margin: 8px 0 6px;
+    word-break: break-all;
+    user-select: all;
+  }
+  .temp-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
   .warn-note {
     font-size: 11.5px;
     color: var(--amber);
@@ -406,6 +509,44 @@
       </div>
     </div>
 
+    <!-- ---------- all gateways ---------- -->
+    <div class="card">
+      <h2>All gateways — re-download files</h2>
+      <div class="hint" style="margin-bottom:12px;">
+        Every gateway with a ccd/ entry, including ones provisioned before
+        this portal existed. Use this when a unit is replaced and the new
+        one needs the same certificate.
+      </div>
+      <input type="text" class="gw-search" id="gwSearch" placeholder="Filter by name…" autocapitalize="none">
+      <div id="gwList"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- ---------- admin ---------- -->
+    <div class="card admin-card hidden" id="adminCard">
+      <h2>User administration</h2>
+
+      <div id="userList"><div class="empty">Loading…</div></div>
+
+      <div class="temp-box" id="tempBox">
+        <div class="temp-label">Temporary password for <span id="tempUser">—</span></div>
+        <div class="temp-pw" id="tempPw">—</div>
+        <div class="temp-note">
+          Relay this directly — it is shown once and cannot be retrieved again.
+          They must set their own password at first sign-in, which invalidates this one.
+        </div>
+      </div>
+
+      <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--border);">
+        <div class="row">
+          <label for="newUser">Add a user</label>
+          <input type="text" id="newUser" placeholder="username" autocapitalize="none" spellcheck="false">
+          <div class="hint">Lowercase letters, digits, hyphen, underscore.</div>
+        </div>
+        <button class="btn" id="addUserBtn" onclick="doAddUser()">Create user</button>
+        <div class="msg" id="aMsg"></div>
+      </div>
+    </div>
+
     <!-- ---------- history ---------- -->
     <div class="card">
       <h2>Recently issued</h2>
@@ -475,6 +616,17 @@ async function refreshSession() {
   hide('changeCard');
   show('portal');
   loadHistory();
+  loadGateways();
+
+  /* The admin card is hidden for non-admins, but that is presentation
+     only -- every /api/admin/* route re-checks is_admin server side, so
+     hiding it is convenience rather than the control. */
+  if (data.isAdmin) {
+    show('adminCard');
+    loadUsers();
+  } else {
+    hide('adminCard');
+  }
 }
 
 async function doLogin() {
@@ -502,6 +654,8 @@ async function doLogout() {
   document.getElementById('lUser').value = '';
   document.getElementById('lPass').value = '';
   hide('resultCard');
+  hide('adminCard');
+  document.getElementById('tempBox').classList.remove('show');
   refreshSession();
 }
 
@@ -573,6 +727,8 @@ async function doGenerate() {
 
   setMsg('gMsg', 'Created ' + data.name + '.', 'ok');
   renderResult(data.name, data.staticIp, data.files);
+  loadHistory();
+  loadGateways();
 }
 
 function renderResult(name, ip, files) {
@@ -599,6 +755,132 @@ function renderResult(name, ip, files) {
 
   show('resultCard');
   document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// -------------------------------------------------------- gateway browser
+
+let GATEWAYS = [];
+
+async function loadGateways() {
+  const box = document.getElementById('gwList');
+  const { ok, data } = await api('/api/certs/gateways');
+  if (!ok) { box.innerHTML = '<div class="empty">Could not load gateways.</div>'; return; }
+  GATEWAYS = data.gateways || [];
+  if (!GATEWAYS.length) {
+    box.innerHTML = '<div class="empty">No gateways provisioned yet.</div>';
+    return;
+  }
+  box.innerHTML = GATEWAYS.map(g => `
+    <div class="gw-row" data-name="${g.name.toLowerCase()}">
+      <span class="gw-name">${g.name}</span>
+      <span class="gw-ip">${g.staticIp || 'no IP'}</span>
+      ${g.hasCert ? '' : '<span class="gw-warn">NO CERT</span>'}
+      <button class="gw-files"
+        onclick='renderResult(${JSON.stringify(g.name)}, ${JSON.stringify(g.staticIp)}, ${JSON.stringify(g.files)})'>
+        files →
+      </button>
+    </div>
+  `).join('');
+}
+
+document.getElementById('gwSearch').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#gwList .gw-row').forEach(row => {
+    row.classList.toggle('hidden-search', q && !row.dataset.name.includes(q));
+  });
+});
+
+// ---------------------------------------------------------------- admin
+
+function showTemp(username, pw) {
+  document.getElementById('tempUser').textContent = username;
+  document.getElementById('tempPw').textContent = pw;
+  document.getElementById('tempBox').classList.add('show');
+  document.getElementById('tempBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function loadUsers() {
+  const box = document.getElementById('userList');
+  const { ok, data } = await api('/api/admin/users');
+  if (!ok) { box.innerHTML = '<div class="empty">Could not load users.</div>'; return; }
+  const me = data.me;
+  box.innerHTML = (data.users || []).map(u => {
+    const isMe = u.username === me;
+    return `
+    <div class="u-row">
+      <span class="u-name">${u.username}</span>
+      ${u.is_admin ? '<span class="u-tag admin">ADMIN</span>' : ''}
+      ${u.is_active ? '' : '<span class="u-tag off">DISABLED</span>'}
+      ${u.must_change_password ? '<span class="u-tag pend">MUST RESET</span>' : ''}
+      <div class="u-actions">
+        <button class="u-btn" onclick='adminReset(${JSON.stringify(u.username)})'>Reset password</button>
+        ${isMe ? '' : `
+          <button class="u-btn danger" onclick='adminActive(${JSON.stringify(u.username)}, ${!u.is_active})'>
+            ${u.is_active ? 'Disable' : 'Enable'}
+          </button>
+          <button class="u-btn" onclick='adminRole(${JSON.stringify(u.username)}, ${!u.is_admin})'>
+            ${u.is_admin ? 'Remove admin' : 'Make admin'}
+          </button>`}
+      </div>
+      <div class="u-meta">last sign-in: ${u.last_login ? new Date(u.last_login).toLocaleString() : 'never'}</div>
+    </div>`;
+  }).join('');
+}
+
+async function adminReset(username) {
+  if (!confirm('Reset the password for ' + username + '? Their current password stops working immediately.')) return;
+  const { ok, data } = await api('/api/admin/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  if (!ok) return alert(data.error || 'Reset failed.');
+  showTemp(username, data.temporaryPassword);
+  loadUsers();
+}
+
+async function adminActive(username, active) {
+  const verb = active ? 'Enable' : 'Disable';
+  if (!confirm(verb + ' ' + username + '?')) return;
+  const { ok, data } = await api('/api/admin/set-active', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, active }),
+  });
+  if (!ok) return alert(data.error || 'Update failed.');
+  loadUsers();
+}
+
+async function adminRole(username, makeAdmin) {
+  const verb = makeAdmin ? 'Grant admin rights to' : 'Remove admin rights from';
+  if (!confirm(verb + ' ' + username + '?')) return;
+  const { ok, data } = await api('/api/admin/set-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, admin: makeAdmin }),
+  });
+  if (!ok) return alert(data.error || 'Update failed.');
+  loadUsers();
+}
+
+async function doAddUser() {
+  const btn = document.getElementById('addUserBtn');
+  const username = document.getElementById('newUser').value.trim().toLowerCase();
+  if (!username) return setMsg('aMsg', 'Enter a username.', 'err');
+
+  btn.disabled = true; btn.textContent = 'Creating…';
+  const { ok, data } = await api('/api/admin/add-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  btn.disabled = false; btn.textContent = 'Create user';
+
+  if (!ok) return setMsg('aMsg', data.error || 'Could not create user.', 'err');
+  setMsg('aMsg', '', '');
+  document.getElementById('newUser').value = '';
+  showTemp(username, data.temporaryPassword);
+  loadUsers();
 }
 
 // ---------------------------------------------------------------- history

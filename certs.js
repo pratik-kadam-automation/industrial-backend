@@ -224,4 +224,38 @@ async function handleList(req, res, dbClient) {
     }
 }
 
-module.exports = { handleGenerate, handleDownload, handleList, validName };
+/**
+ * GET /api/certs/gateways — every provisioned gateway, from ccd/ rather
+ * than cert_audit. The audit table only knows about gateways created
+ * through this portal; the ones provisioned by hand earlier would
+ * otherwise be undownloadable, which is exactly the case that matters
+ * when a unit dies on site and needs replacing.
+ */
+function handleGateways(req, res) {
+    const user = auth.requireAuth(req, res);
+    if (!user) return;
+
+    let names = [];
+    try {
+        names = fs.readdirSync(CCD_DIR).filter(f => !f.startsWith('.') && validName(f));
+    } catch (err) {
+        console.error('ccd read failed:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Could not read gateway list.' }));
+    }
+
+    const gateways = names.sort().map(name => {
+        const map = filesFor(name);
+        const available = Object.keys(map).filter(label => fs.existsSync(map[label]));
+        /* A gateway with a ccd entry but no issued cert is a broken
+           provision -- surface it rather than hiding it, since it will
+           show as a permanently offline card on the dashboard. */
+        const hasCert = available.includes(`${name}.crt`);
+        return { name, staticIp: readCcdIp(name), files: available, hasCert };
+    });
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ gateways }));
+}
+
+module.exports = { handleGenerate, handleDownload, handleList, handleGateways, validName };
