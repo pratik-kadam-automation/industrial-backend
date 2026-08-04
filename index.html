@@ -81,6 +81,19 @@
   .nav-item.active { background: rgba(79,209,197,0.12); color: var(--cyan); }
   .nav-item.disabled { opacity: 0.35; cursor: not-allowed; }
   .nav-item.disabled:hover { background: none; color: var(--muted); }
+  /* The Certificates entry is a real link to a separate page rather than
+     a tab, so it needs the anchor defaults reset to match its siblings. */
+  a.nav-item { text-decoration: none; color: var(--muted); }
+  a.nav-item:hover { background: var(--panel-2); color: var(--text); }
+  .nav-lock {
+    margin-left: auto;
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
   .nav-icon { width: 16px; text-align: center; font-family: var(--mono); font-size: 13px; }
   .nav-soon {
     margin-left: auto;
@@ -782,6 +795,9 @@
   <div class="nav-item" data-page="fleet">
     <span class="nav-icon">⛓</span> VPN Fleet
   </div>
+  <a class="nav-item" href="/certs">
+    <span class="nav-icon">⚿</span> Certificates <span class="nav-lock">sign in</span>
+  </a>
   <div class="nav-item disabled">
     <span class="nav-icon">▤</span> Processes <span class="nav-soon">soon</span>
   </div>
@@ -1875,6 +1891,5 @@ setInterval(tickClock, 1000);
 refreshAll();
 setInterval(refreshAll, REFRESH_MS);
 </script>
-
 </body>
 </html>
