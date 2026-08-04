@@ -1,2 +1,7 @@
 .env
 node_modules/
+.env
+.env.*
+*.bak
+*.bak-*
+node_modules/

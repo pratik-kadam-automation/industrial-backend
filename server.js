@@ -5,6 +5,9 @@ const path = require('path');
 const { Client } = require('pg');
 const auth = require('./auth');
 const certs = require('./certs');
+const admin = require('./admin');
+const auditLogger = require('./auditLogger');
+const downtimeConfig = require('./downtimeConfig');
 const {
     startMqttClient,
     getLatestMachineData,
@@ -173,6 +176,77 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/certs/generate' && req.method === 'POST') {
         try {
             return await certs.handleGenerate(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/certs/gateways' && req.method === 'GET') {
+        return certs.handleGateways(req, res);
+    }
+
+    // ---- admin routes (is_admin re-checked per request) ---------------
+    // ---- audit log (admin only) ---------------------------------------
+    if (req.url.startsWith('/api/admin/audit-log') && req.method === 'GET') {
+        return await auditLogger.handleList(req, res, dbClient, auth);
+    }
+
+    // ---- downtime tag configuration ------------------------------------
+    // Save is admin-only (changes fleet-wide behavior); reads are open to
+    // any signed-in user since the Downtimes tab needs them to render.
+    if (req.url === '/api/admin/downtime-config' && req.method === 'POST') {
+        try {
+            return await downtimeConfig.handleSave(req, res, dbClient, await readJsonBody(req), auth);
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/admin/downtime-config' && req.method === 'GET') {
+        return await downtimeConfig.handleList(req, res, dbClient, auth);
+    }
+
+    if (req.url.startsWith('/api/admin/downtime-config/') && req.method === 'GET') {
+        const gwId = decodeURIComponent(req.url.split('/api/admin/downtime-config/')[1].split('?')[0]);
+        return await downtimeConfig.handleGet(req, res, dbClient, gwId, auth);
+    }
+
+    if (req.url === '/api/admin/users' && req.method === 'GET') {
+        return await admin.handleUsers(req, res, dbClient);
+    }
+
+    if (req.url === '/api/admin/reset-password' && req.method === 'POST') {
+        try {
+            return await admin.handleResetPassword(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/admin/set-active' && req.method === 'POST') {
+        try {
+            return await admin.handleSetActive(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/admin/set-admin' && req.method === 'POST') {
+        try {
+            return await admin.handleSetAdmin(req, res, dbClient, await readJsonBody(req));
+        } catch (err) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Bad request body.' }));
+        }
+    }
+
+    if (req.url === '/api/admin/add-user' && req.method === 'POST') {
+        try {
+            return await admin.handleAddUser(req, res, dbClient, await readJsonBody(req));
         } catch (err) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: 'Bad request body.' }));
