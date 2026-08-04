@@ -363,6 +363,43 @@
   }
   .temp-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
 
+  .dt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .dt-row:last-child { border-bottom: none; }
+  .dt-gw { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+  .dt-summary {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .dt-edit {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .dt-edit:hover { border-color: var(--cyan); }
+  .dt-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .dt-form-grid .row { margin-bottom: 0; }
+  .dt-form-grid label.state-run { color: #4FD18F; }
+  .dt-form-grid label.state-down { color: var(--amber); }
+  .dt-form-grid label.state-break { color: var(--coral); }
+
   .warn-note {
     font-size: 11.5px;
     color: var(--amber);
@@ -556,6 +593,49 @@
         <button class="btn" id="addUserBtn" onclick="doAddUser()">Create user</button>
         <div class="msg" id="aMsg"></div>
       </div>
+
+      <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--border);">
+        <h2 style="margin-bottom:12px;">Downtime tag configuration</h2>
+        <div class="hint" style="margin-bottom:14px;">
+          Maps one MQTT field on a gateway to running / idle / breakdown
+          state, for the Downtimes tab. Any signed-in user can view these;
+          only admins can change them.
+        </div>
+
+        <div id="dtList"><div class="empty">Loading…</div></div>
+
+        <div style="margin-top:16px; padding-top:16px; border-top:1px dashed var(--border);">
+          <div class="row">
+            <label for="dtGwId">Gateway</label>
+            <select id="dtGwId"></select>
+          </div>
+          <div class="row">
+            <label for="dtTopic">MQTT topic</label>
+            <input type="text" id="dtTopic" placeholder="HyperGrid/DP_GLOS_001/GW_GLOS_001_001615/data">
+          </div>
+          <div class="row">
+            <label for="dtTag">Data tag key</label>
+            <input type="text" id="dtTag" placeholder="cncStatus">
+            <div class="hint">The JSON field name in the machine's payload that carries the state.</div>
+          </div>
+          <div class="row dt-form-grid">
+            <div>
+              <label class="state-break" for="dtBk">Breakdown value</label>
+              <input type="text" id="dtBk" value="2">
+            </div>
+            <div>
+              <label class="state-down" for="dtDt">Idle value</label>
+              <input type="text" id="dtDt" value="0">
+            </div>
+            <div>
+              <label class="state-run" for="dtRn">Running value</label>
+              <input type="text" id="dtRn" value="1">
+            </div>
+          </div>
+          <button class="btn" id="dtSaveBtn" style="margin-top:14px;" onclick="saveDowntimeConfig()">Save mapping</button>
+          <div class="msg" id="dtMsg"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ---------- history ---------- -->
@@ -635,6 +715,7 @@ async function refreshSession() {
   if (data.isAdmin) {
     show('adminCard');
     loadUsers();
+    loadDowntimeConfigs();
   } else {
     hide('adminCard');
   }
@@ -777,6 +858,7 @@ async function loadGateways() {
   const { ok, data } = await api('/api/certs/gateways');
   if (!ok) { box.innerHTML = '<div class="empty">Could not load gateways.</div>'; return; }
   GATEWAYS = data.gateways || [];
+  if (document.getElementById('dtGwId')) populateDtGatewaySelect();
   if (!GATEWAYS.length) {
     box.innerHTML = '<div class="empty">No gateways provisioned yet.</div>';
     return;
@@ -800,6 +882,75 @@ document.getElementById('gwSearch').addEventListener('input', (e) => {
     row.classList.toggle('hidden-search', q && !row.dataset.name.includes(q));
   });
 });
+
+// ------------------------------------------------------- downtime config
+
+function populateDtGatewaySelect() {
+  const sel = document.getElementById('dtGwId');
+  const current = sel.value;
+  sel.innerHTML = GATEWAYS.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+  if (current && GATEWAYS.some(g => g.name === current)) sel.value = current;
+}
+
+async function loadDowntimeConfigs() {
+  const box = document.getElementById('dtList');
+  const { ok, data } = await api('/api/admin/downtime-config');
+  if (!ok) { box.innerHTML = '<div class="empty">Could not load configurations.</div>'; return; }
+  const configs = data.configs || [];
+  if (!configs.length) {
+    box.innerHTML = '<div class="empty">No gateways configured yet.</div>';
+    return;
+  }
+  box.innerHTML = configs.map(c => `
+    <div class="dt-row">
+      <span class="dt-gw">${c.gateway_id}</span>
+      <span class="dt-summary">${c.tag_key}: run=${c.running_value} idle=${c.downtime_value} break=${c.breakdown_value}</span>
+      <button class="dt-edit"
+        onclick='editDowntimeConfig(${JSON.stringify(c.gateway_id)}, ${JSON.stringify(c.mqtt_topic)}, ${JSON.stringify(c.tag_key)}, ${JSON.stringify(c.breakdown_value)}, ${JSON.stringify(c.downtime_value)}, ${JSON.stringify(c.running_value)})'>
+        edit →
+      </button>
+    </div>
+  `).join('');
+}
+
+function editDowntimeConfig(gwId, topic, tag, bk, dt, rn) {
+  populateDtGatewaySelect();
+  document.getElementById('dtGwId').value = gwId;
+  document.getElementById('dtTopic').value = topic || '';
+  document.getElementById('dtTag').value = tag || '';
+  document.getElementById('dtBk').value = bk ?? '2';
+  document.getElementById('dtDt').value = dt ?? '0';
+  document.getElementById('dtRn').value = rn ?? '1';
+  document.getElementById('dtGwId').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function saveDowntimeConfig() {
+  const btn = document.getElementById('dtSaveBtn');
+  const payload = {
+    gatewayId: document.getElementById('dtGwId').value,
+    mqttTopic: document.getElementById('dtTopic').value.trim(),
+    tagKey: document.getElementById('dtTag').value.trim(),
+    breakdownValue: document.getElementById('dtBk').value.trim(),
+    downtimeValue: document.getElementById('dtDt').value.trim(),
+    runningValue: document.getElementById('dtRn').value.trim(),
+  };
+
+  if (!payload.gatewayId || !payload.mqttTopic || !payload.tagKey) {
+    return setMsg('dtMsg', 'Gateway, MQTT topic, and tag key are all required.', 'err');
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { ok, data } = await api('/api/admin/downtime-config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  btn.disabled = false; btn.textContent = 'Save mapping';
+
+  if (!ok) return setMsg('dtMsg', data.error || 'Could not save.', 'err');
+  setMsg('dtMsg', 'Saved for ' + payload.gatewayId + '.', 'ok');
+  loadDowntimeConfigs();
+}
 
 // ---------------------------------------------------------------- admin
 
