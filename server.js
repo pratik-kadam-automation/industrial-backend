@@ -52,12 +52,16 @@ function connectToDatabase() {
             `);
         })
         .then(() => {
-            // Production tracker intentionally PAUSED for now — holding
-            // off on continuous DB writes until we've watched actual
-            // storage growth and tuned the logic with a clear head.
-            // Re-enable by uncommenting the line below.
-            // startProductionTracker(dbClient, 'venus');
-            console.log('Production tracker is paused (not writing data) — uncomment in server.js to re-enable.');
+            const trackerEnabled = process.env.PRODUCTION_TRACKER_ENABLED === 'true';
+            if (trackerEnabled) {
+                startProductionTracker(dbClient, 'venus');
+                console.log('Production tracker is ACTIVE (writing data).');
+            } else {
+                console.warn('Production tracker is DISABLED (PRODUCTION_TRACKER_ENABLED != true) — no data is being written!');
+                setInterval(() => {
+                    console.warn('REMINDER: Production tracker is still DISABLED. Set PRODUCTION_TRACKER_ENABLED=true in .env to resume.');
+                }, 60 * 60 * 1000);
+            }
         })
         .catch(err => {
             console.warn('Database not available, continuing without DB logging:', err.message);
