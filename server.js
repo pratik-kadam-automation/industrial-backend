@@ -17,6 +17,7 @@ const {
     unsubscribeTopic,
     retargetTopic,
     HISTORY_LIMIT,
+    getConnectionStatus,
 } = require('./mqtt-machine');
 const { startProductionTracker } = require('./productionTracker');
 const dbClient = new Client({
@@ -150,7 +151,39 @@ function readJsonBody(req) {
     });
 }
 const server = http.createServer(async (req, res) => {
+    // ---- health check (no auth) ----------------------------------------
+    // Used by deploy tooling to confirm the service is actually working,
+    // not just that the process is running.
+    if (req.url === '/health' && req.method === 'GET') {
+        const checks = { database: false, mqtt: false };
 
+        if (!dbAvailable) {
+            checks.databaseError = 'not connected';
+        } else {
+            try {
+                await Promise.race([
+                    dbClient.query('SELECT 1'),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('timeout after 2s')), 2000)
+                    ),
+                ]);
+                checks.database = true;
+            } catch (err) {
+                checks.databaseError = err.message;
+            }
+        }
+
+        const mqttStatus = getConnectionStatus();
+        checks.mqtt = mqttStatus.connected;
+
+        const healthy = checks.database && checks.mqtt;
+        res.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+            status: healthy ? 'ok' : 'degraded',
+            uptime_s: Math.floor(process.uptime()),
+            checks,
+        }));
+    }
     // ---- auth routes -------------------------------------------------
     // Placed first so a session is established before anything below it
     // has a chance to run. Nothing here is protected yet — these four

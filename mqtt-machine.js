@@ -212,10 +212,18 @@ function getAllMachineIds() {
     return Object.keys(topicToMachineId).map((topic) => topicToMachineId[topic]);
 }
 
+function getConnectionStatus() {
+    return {
+        connected: Boolean(client && client.connected),
+        reconnecting: Boolean(client && client.reconnecting),
+    };
+}
+
 module.exports = {
     startMqttClient,
     getLatestMachineData,
     getMachineHistory,
+    getConnectionStatus,
     clearMachineHistory,
     subscribeTopic,
     unsubscribeTopic,
