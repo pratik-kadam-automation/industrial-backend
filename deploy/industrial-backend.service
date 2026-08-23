@@ -1,0 +1,25 @@
+[Unit]
+Description=Industrial Backend API (Docker)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/ubuntu/industrial-backend
+ExecStartPre=-/usr/bin/docker rm -f backend-live
+ExecStart=/usr/bin/docker run --rm --name backend-live \
+  --network host \
+  --env-file /home/ubuntu/industrial-backend/.env \
+  -v /home/ubuntu/certs:/home/ubuntu/certs:ro \
+  -v /etc/openvpn/server/openvpn-status.log:/etc/openvpn/server/openvpn-status.log:ro \
+  -v /etc/openvpn/server/openvpn-status-tcp.log:/etc/openvpn/server/openvpn-status-tcp.log:ro \
+  -v /etc/openvpn/server/ccd:/etc/openvpn/server/ccd:ro \
+  -v /etc/openvpn/server/ccd-tcp:/etc/openvpn/server/ccd-tcp:ro \
+  ghcr.io/pratik-kadam-automation/industrial-backend:latest
+ExecStop=/usr/bin/docker stop backend-live
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
