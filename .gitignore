@@ -5,3 +5,4 @@ node_modules/
 *.bak
 *.bak-*
 node_modules/
+.env.example
