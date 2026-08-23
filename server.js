@@ -31,7 +31,11 @@ const VPN_STATUS_LOG = process.env.VPN_STATUS_LOG || '/etc/openvpn/server/openvp
 const VPN_STATUS_LOG_TCP = process.env.VPN_STATUS_LOG_TCP || '/etc/openvpn/server/openvpn-status-tcp.log';
 // Simple shared secret so random people on the internet can't post fake SAP reports.
 // Set SAP_REPORT_TOKEN in .env and give the same value to the laptop script.
-const SAP_REPORT_TOKEN = process.env.SAP_REPORT_TOKEN || 'change-me';
+const SAP_REPORT_TOKEN = process.env.SAP_REPORT_TOKEN;
+if (!SAP_REPORT_TOKEN) {
+    console.error('FATAL: SAP_REPORT_TOKEN is not set in .env. Refusing to start.');
+    process.exit(1);
+}
 let dbAvailable = false;
 let lastSapReport = null; // in-memory store, resets on restart
 function connectToDatabase() {
