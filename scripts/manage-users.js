@@ -92,6 +92,23 @@ async function ensureTable() {
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false
     `);
+    // role is additive alongside is_admin for now -- is_admin remains the
+    // source of truth for admin routes until WQ-12 introduces role-based
+    // middleware. tenant_id has no FK yet; the tenants table arrives in
+    // WQ-14. Both are safe to add early so this file isn't touched twice.
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'viewer'
+    `);
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS tenant_id INTEGER
+    `);
+    // Backfill: existing admins should carry the admin role explicitly,
+    // not just the is_admin flag, so future role-based checks see them.
+    await pool.query(`
+        UPDATE users SET role = 'admin' WHERE is_admin = true AND role = 'viewer'
+    `);
     await pool.query(`
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false
@@ -159,6 +176,22 @@ async function main() {
         return;
     }
 
+    if (cmd === 'role') {
+        const newRole = process.argv[4];
+        const allowed = ['viewer', 'operator', 'engineer', 'admin'];
+        if (!allowed.includes(newRole)) {
+            console.error(`Role must be one of: ${allowed.join(', ')}`);
+            await pool.end();
+            return;
+        }
+        const q = await pool.query(
+            'UPDATE users SET role = $1 WHERE username = $2 RETURNING username',
+            [newRole, uname]
+        );
+        console.log(q.rowCount ? `${uname}: role = ${newRole}` : `No such user: ${uname}`);
+        await pool.end();
+        return;
+    }
     if (cmd === 'disable' || cmd === 'enable') {
         const active = cmd === 'enable';
         const q = await pool.query(
