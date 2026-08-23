@@ -22,8 +22,9 @@ jobs:
             echo "Pulling new image..."
             docker pull ghcr.io/${{ github.repository }}:latest
 
-            echo "Starting new container on port 3001..."
+            echo "Starting new container..."
             docker rm -f backend-candidate 2>/dev/null || true
+            docker run -d --name backend-candidate \
               --env-file .env.deploy-test \
               --network host \
               -v /home/ubuntu/certs:/home/ubuntu/certs:ro \
