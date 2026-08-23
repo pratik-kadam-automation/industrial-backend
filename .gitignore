@@ -6,3 +6,4 @@ node_modules/
 *.bak-*
 node_modules/
 .env.example
+!.env.example
