@@ -25,7 +25,8 @@ jobs:
             echo "Starting new container on port 3001..."
             docker rm -f backend-candidate 2>/dev/null || true
             docker run -d --name backend-candidate -p 3001:3000 \
-              --env-file .env \
+              --env-file .env.deploy-test \
+              --add-host=host.docker.internal:host-gateway \
               -v /home/ubuntu/certs:/home/ubuntu/certs:ro \
               ghcr.io/${{ github.repository }}:latest
 
