@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Oracle
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/industrial-backend
+
+            echo "Pulling new image..."
+            docker pull ghcr.io/${{ github.repository }}:latest
+
+            echo "Starting new container on port 3001..."
+            docker rm -f backend-candidate 2>/dev/null || true
+            docker run -d --name backend-candidate -p 3001:3000 \
+              --env-file .env \
+              -v /home/ubuntu/certs:/home/ubuntu/certs:ro \
+              ghcr.io/${{ github.repository }}:latest
+
+            echo "Waiting for health check..."
+            sleep 5
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health)
+
+            if [ "$HEALTH" != "200" ]; then
+              echo "Health check failed with status $HEALTH. Rolling back."
+              docker rm -f backend-candidate
+              exit 1
+            fi
+
+            echo "Health check passed on candidate. Stopping test container."
+            docker rm -f backend-candidate
+            echo "Deploy verification successful. Production untouched (Option A - manual cutover)."
