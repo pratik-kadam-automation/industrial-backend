@@ -20,6 +20,19 @@ const {
     getConnectionStatus,
 } = require('./mqtt-machine');
 const { startProductionTracker } = require('./productionTracker');
+// ---- fail loudly on missing required config -------------------------
+// A missing value here should stop the process immediately, not let
+// it start broken and fail mysteriously later.
+const REQUIRED_ENV = [
+    'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME',
+    'MQTT_ENDPOINT', 'MQTT_CA_PATH', 'MQTT_CERT_PATH', 'MQTT_KEY_PATH',
+    'MQTT_CLIENT_ID', 'SAP_REPORT_TOKEN', 'SESSION_SECRET',
+];
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+    console.error(`FATAL: missing required .env variables: ${missing.join(', ')}`);
+    process.exit(1);
+}
 const dbClient = new Client({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
@@ -32,10 +45,6 @@ const VPN_STATUS_LOG_TCP = process.env.VPN_STATUS_LOG_TCP || '/etc/openvpn/serve
 // Simple shared secret so random people on the internet can't post fake SAP reports.
 // Set SAP_REPORT_TOKEN in .env and give the same value to the laptop script.
 const SAP_REPORT_TOKEN = process.env.SAP_REPORT_TOKEN;
-if (!SAP_REPORT_TOKEN) {
-    console.error('FATAL: SAP_REPORT_TOKEN is not set in .env. Refusing to start.');
-    process.exit(1);
-}
 let dbAvailable = false;
 let lastSapReport = null; // in-memory store, resets on restart
 function connectToDatabase() {
