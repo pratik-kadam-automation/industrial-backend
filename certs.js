@@ -67,7 +67,7 @@ function readCcdIp(name) {
  * POST /api/certs/generate  { client: 'gloster' }  or  { name: 'gloster13' }
  */
 async function handleGenerate(req, res, dbClient, body) {
-    const user = auth.requireAuth(req, res);
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     const client = body.client ? String(body.client).trim().toLowerCase() : '';
@@ -151,8 +151,12 @@ async function handleGenerate(req, res, dbClient, body) {
 // --------------------------------------------------------------- download
 
 /**
- * GET /api/certs/download/<name>/<file>
+* GET /api/certs/download/<name>/<file>
  */
+ // FIXME(WQ-12 follow-up): requireAuth is now async and DB-backed.
+ // This call is NOT awaited and has no dbClient -- the auth check
+ // below is currently a no-op. Needs async + dbClient threaded from
+ // server.js before this route is actually protected.
 function handleDownload(req, res, urlPath) {
     const user = auth.requireAuth(req, res);
     if (!user) return;
@@ -202,7 +206,7 @@ function handleDownload(req, res, urlPath) {
 
 /** GET /api/certs/list — recent issuances, for the portal's history panel. */
 async function handleList(req, res, dbClient) {
-    const user = auth.requireAuth(req, res);
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     try {
@@ -231,6 +235,10 @@ async function handleList(req, res, dbClient) {
  * otherwise be undownloadable, which is exactly the case that matters
  * when a unit dies on site and needs replacing.
  */
+// FIXME(WQ-12 follow-up): requireAuth is now async and DB-backed.
+// This call is NOT awaited and has no dbClient -- the auth check
+// below is currently a no-op. Needs async + dbClient threaded from
+// server.js before this route is actually protected.
 function handleGateways(req, res) {
     const user = auth.requireAuth(req, res);
     if (!user) return;

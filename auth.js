@@ -184,14 +184,26 @@ function getUser(req) {
  *   const user = requireAuth(req, res);
  *   if (!user) return;
  */
-function requireAuth(req, res) {
+async function requireAuth(req, res, dbClient) {
     const user = getUser(req);
-    if (user) return user;
+    if (!user) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Authentication required' }));
+        return null;
+    }
+    try {
+        const q = await dbClient.query('SELECT is_active FROM users WHERE username = $1', [user.username]);
+        if (q.rows[0] && q.rows[0].is_active) return user;
+    } catch (err) {
+        console.error('requireAuth db error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Authorization check failed.' }));
+        return null;
+    }
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Authentication required' }));
+    res.end(JSON.stringify({ error: 'Account disabled.' }));
     return null;
 }
-
 /**
  * Guard for admin-only routes. Unlike requireAuth this hits the database
  * every time rather than trusting the token: admin can be revoked
