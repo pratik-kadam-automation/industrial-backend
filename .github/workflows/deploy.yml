@@ -69,4 +69,4 @@ jobs:
             fi
 
             echo "Deploy successful. Production cut over automatically, health check passed."
-            ntfy publish --title "Deploy Succeeded" --priority default pratik-gateway-alerts "industrial-backend ${{ github.ref_name }} (${{ github.sha }}) deployed successfully. $COMMIT_MSG"
+            ntfy publish --title "Deploy Succeeded" --priority default pratik-gateway-alerts "industrial-backend ${{ github.ref_name }} (${{ github.sha }}) deployed successfully, health check passed. $(date). $COMMIT_MSG"
