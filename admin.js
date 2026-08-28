@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const auth = require('./auth');
+const auditLogger = require('./auditLogger');
 
 // --------------------------------------------------------------- helpers
 
@@ -75,6 +76,14 @@ async function handleResetPassword(req, res, dbClient, body) {
             return res.end(JSON.stringify({ error: `No such user: ${username}` }));
         }
         console.log(`password reset: ${username} by ${admin.username}`);
+        await auditLogger.logAuditEvent(dbClient, {
+            actorId: admin.username,
+            actorIp: req.socket.remoteAddress,
+            action: 'RESET_PASSWORD',
+            targetType: 'user',
+            targetId: username,
+            details: {},
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, username, temporaryPassword: temp }));
     } catch (err) {
