@@ -11,10 +11,13 @@ jobs:
     steps:
       - name: Deploy to Oracle
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: COMMIT_MSG
           script: |
             set -e
             cd ~/industrial-backend
@@ -66,5 +69,4 @@ jobs:
             fi
 
             echo "Deploy successful. Production cut over automatically, health check passed."
-            ntfy publish --title "Deploy Succeeded" --priority default pratik-gateway-alerts "industrial-backend ${{ github.ref_name }} (${{ github.sha }}) deployed successfully, health check passed. $(date)"
-
+            ntfy publish --title "Deploy Succeeded" --priority default pratik-gateway-alerts "industrial-backend ${{ github.ref_name }} (${{ github.sha }}) deployed successfully. $COMMIT_MSG"
