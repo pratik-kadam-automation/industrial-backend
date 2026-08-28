@@ -62,7 +62,9 @@ jobs:
               sleep 8
               REVERT_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health)
               echo "Reverted. Health after revert: $REVERT_HEALTH"
+              ntfy publish --title "Deploy Failed - Auto-Reverted" --priority high pratik-gateway-alerts "New version failed health check ($PROD_HEALTH). Automatically reverted to last-known-good. Health after revert: $REVERT_HEALTH. $(date)"
               exit 1
             fi
 
             echo "Deploy successful. Production cut over automatically, health check passed."
+            ntfy publish --title "Deploy Succeeded" --priority default pratik-gateway-alerts "industrial-backend deployed successfully, health check passed. $(date)"
