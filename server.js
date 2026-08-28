@@ -173,10 +173,6 @@ const server = http.createServer(async (req, res) => {
     // not just that the process is running.
     if (req.url === '/health' && req.method === 'GET') {
         const checks = { database: false, mqtt: false };
-      // TEMPORARY TEST — deliberately fail health check to prove
-        // WQ-08b's revert path works. Remove immediately after testing.
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ status: 'test-failure', note: 'deliberate, for revert testing' }));
         if (!dbAvailable) {
             checks.databaseError = 'not connected';
         } else {
