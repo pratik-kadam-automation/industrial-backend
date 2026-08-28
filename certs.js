@@ -153,12 +153,8 @@ async function handleGenerate(req, res, dbClient, body) {
 /**
 * GET /api/certs/download/<name>/<file>
  */
- // FIXME(WQ-12 follow-up): requireAuth is now async and DB-backed.
- // This call is NOT awaited and has no dbClient -- the auth check
- // below is currently a no-op. Needs async + dbClient threaded from
- // server.js before this route is actually protected.
-function handleDownload(req, res, urlPath) {
-    const user = auth.requireAuth(req, res);
+async function handleDownload(req, res, dbClient, urlPath) {
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     const rest = urlPath.replace('/api/certs/download/', '');
@@ -235,12 +231,8 @@ async function handleList(req, res, dbClient) {
  * otherwise be undownloadable, which is exactly the case that matters
  * when a unit dies on site and needs replacing.
  */
-// FIXME(WQ-12 follow-up): requireAuth is now async and DB-backed.
-// This call is NOT awaited and has no dbClient -- the auth check
-// below is currently a no-op. Needs async + dbClient threaded from
-// server.js before this route is actually protected.
-function handleGateways(req, res) {
-    const user = auth.requireAuth(req, res);
+async function handleGateways(req, res, dbClient) {
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     let names = [];

@@ -233,7 +233,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.url === '/api/certs/gateways' && req.method === 'GET') {
-        return certs.handleGateways(req, res);
+        return certs.handleGateways(req, res, dbClient);
     }
 
     // ---- admin routes (is_admin re-checked per request) ---------------
@@ -308,7 +308,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.url.startsWith('/api/certs/download/') && req.method === 'GET') {
-        return certs.handleDownload(req, res, req.url.split('?')[0]);
+        return certs.handleDownload(req, res, dbClient, req.url.split("?")[0]);
     }
 
     if (req.url === '/certs' || req.url === '/certs.html') {
