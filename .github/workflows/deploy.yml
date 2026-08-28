@@ -19,6 +19,11 @@ jobs:
             set -e
             cd ~/industrial-backend
 
+            echo "Recording last-known-good image..."
+            LAST_GOOD=$(docker inspect backend-live --format '{{.Image}}' 2>/dev/null || echo "none")
+            echo "$LAST_GOOD" > .last-good-image
+            echo "Last known good: $LAST_GOOD"
+
             echo "Pulling new image..."
             docker pull ghcr.io/${{ github.repository }}:latest
 
