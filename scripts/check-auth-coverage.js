@@ -25,22 +25,32 @@ const ALLOWLIST = [
     '/api/certs/generate',   // certs.js: requireAuth + dbClient, fixed 2026-08-24
     '/api/certs/gateways',   // certs.js: requireAuth + dbClient, fixed 2026-08-24
     '/api/certs/list',       // certs.js: requireAuth + dbClient
-    '/api/certs/download',   // certs.js: requireAuth + dbClient, fixed 2026-08-24
+    '/api/certs/download/',  // certs.js: requireAuth + dbClient. Corrected 2026-08-30 -- trailing slash added to match the actual startsWith('/api/certs/download/') route; the old entry (no trailing slash) never matched anything even before the regex was widened, since the route always used startsWith, never ===.
     '/api/admin/reset-password',  // admin.js: requireAdmin, verified 2026-08-30
     '/api/admin/set-active',      // admin.js: requireAdmin, verified 2026-08-30
     '/api/admin/set-admin',       // admin.js: requireAdmin, verified 2026-08-30
     '/api/admin/add-user',        // admin.js: requireAdmin, verified 2026-08-30
     '/api/admin/users',           // admin.js: requireAdmin, verified 2026-08-30
     '/api/admin/downtime-config', // downtimeConfig.js: requireAdmin (POST) / requireAuth (GET), verified 2026-08-30
+    '/api/admin/audit-log',          // auditLogger.js: requireAdmin, verified 2026-08-30 (startsWith route)
+    '/api/admin/downtime-config/',   // downtimeConfig.js: requireAuth, verified 2026-08-30 (startsWith route)
+    '/',                     // static shell (index.html); real protection is in the guarded API calls it makes, verified 2026-08-30
+    '/certs',                // static shell (certs.html); same reasoning as '/', verified 2026-08-30
+    '/api/whoami',           // intentionally public -- this IS the auth-status check, verified 2026-08-30
+    '/api/sap/report',       // guarded via SAP_REPORT_TOKEN bearer token, not session auth, verified 2026-08-30
+    '/api/change-password',  // guarded -- password query itself requires is_active = true, verified 2026-08-30
 ];
 
-const routeRegex = /req\.url\s*===\s*'([^']+)'/;
+// Matches both exact-match routes (req.url === '...') and prefix-match
+// routes (req.url.startsWith('...')) -- widened 2026-08-30 after the
+// startsWith style was found to be entirely invisible to this check.
+const routeRegex = /req\.url\s*===\s*'([^']+)'|req\.url\.startsWith\('([^']+)'\)/;
 const failures = [];
 
 lines.forEach((line, i) => {
     const m = line.match(routeRegex);
     if (!m) return;
-    const route = m[1];
+    const route = m[1] || m[2];
     if (ALLOWLIST.includes(route)) return;
 
     // Look ahead a reasonable window for an auth call before the next route.
