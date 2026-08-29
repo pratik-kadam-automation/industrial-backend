@@ -1,0 +1,64 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create backup on Oracle
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/industrial-backend
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            PGPASSWORD=$(grep DB_PASSWORD .env | cut -d= -f2) pg_dump -h localhost -U pratik -d factory_data -Fc -f /tmp/backup-$TIMESTAMP.dump
+            echo "backup-$TIMESTAMP.dump" > /tmp/latest-backup-name.txt
+            ls -la /tmp/backup-$TIMESTAMP.dump
+
+      - name: Download backup from Oracle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          source: "/tmp/backup-*.dump"
+          target: "./downloaded-backup/"
+          strip_components: 1
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: downloaded-backup/*.dump
+          retention-days: 14
+
+      - name: Clean up remote temp file
+        if: always()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: rm -f /tmp/backup-*.dump
+
+      - name: Notify success
+        if: success()
+        run: |
+          curl -H "Title: DB Backup Succeeded" -H "Priority: low" \
+            -d "industrial-backend database backup completed and stored as a GitHub artifact (14-day retention)." \
+            https://ntfy.sh/pratik-gateway-alerts
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          curl -H "Title: DB Backup FAILED" -H "Priority: urgent" \
+            -d "industrial-backend database backup failed. Check the Actions tab immediately — this is a real gap in data protection until fixed." \
+            https://ntfy.sh/pratik-gateway-alerts
