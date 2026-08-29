@@ -23,20 +23,22 @@ jobs:
             ls -la /tmp/db-backup-current.dump
 
       - name: Download backup from Oracle
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          source: "/tmp/db-backup-current.dump"
-          target: "./downloaded-backup/"
-          strip_components: 2
+        run: |
+          mkdir -p downloaded-backup
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }}:/tmp/db-backup-current.dump \
+            downloaded-backup/db-backup.dump
+          rm ~/.ssh/deploy_key
+          ls -la downloaded-backup/
 
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_number }}
-          path: downloaded-backup/*.dump
+          path: downloaded-backup/db-backup.dump
           retention-days: 14
 
       - name: Clean up remote temp file
