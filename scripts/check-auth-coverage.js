@@ -26,6 +26,12 @@ const ALLOWLIST = [
     '/api/certs/gateways',   // certs.js: requireAuth + dbClient, fixed 2026-08-24
     '/api/certs/list',       // certs.js: requireAuth + dbClient
     '/api/certs/download',   // certs.js: requireAuth + dbClient, fixed 2026-08-24
+    '/api/admin/reset-password',  // admin.js: requireAdmin, verified 2026-08-30
+    '/api/admin/set-active',      // admin.js: requireAdmin, verified 2026-08-30
+    '/api/admin/set-admin',       // admin.js: requireAdmin, verified 2026-08-30
+    '/api/admin/add-user',        // admin.js: requireAdmin, verified 2026-08-30
+    '/api/admin/users',           // admin.js: requireAdmin, verified 2026-08-30
+    '/api/admin/downtime-config', // downtimeConfig.js: requireAdmin (POST) / requireAuth (GET), verified 2026-08-30
 ];
 
 const routeRegex = /req\.url\s*===\s*'([^']+)'/;
