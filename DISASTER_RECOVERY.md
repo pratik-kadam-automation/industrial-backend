@@ -27,6 +27,7 @@ If the instance itself is gone — terminated, corrupted, unrecoverable — here
 5. **Point GitHub Secrets at the new host** — update `ORACLE_HOST` in the repo's Actions secrets to the new IP.
 6. **Deploy** — push any tag (e.g. re-push the current version) to trigger `deploy.yml`, which will pull the image, verify, and cut over automatically.
 7. **Verify:** `curl http://localhost:3000/health` should show `database: true, mqtt: true`.
+8. **Notify once confirmed:** `curl -d "industrial-backend fully recovered on new VM." https://ntfy.sh/pratik-gateway-alerts`
 
 ## Scenario 2: Database restore (server intact, data lost or corrupted)
 
@@ -45,6 +46,9 @@ PGPASSWORD=<db_password> pg_restore -h localhost -U pratik -d factory_data --no-
 ```bash
 psql -h localhost -U pratik -d factory_data -c "SELECT COUNT(*) FROM audit_logs;"
 psql -h localhost -U pratik -d factory_data -c "SELECT COUNT(*) FROM users;"
+
+# Notify once confirmed:
+curl -d "industrial-backend database restore completed and verified." https://ntfy.sh/pratik-gateway-alerts
 ```
 
 ## Scenario 3: Bad deploy that automatic rollback somehow doesn't catch
@@ -60,6 +64,9 @@ sudo systemctl restart industrial-backend
 
 # Confirm:
 curl http://localhost:3000/health
+
+# Notify once confirmed:
+curl -d "industrial-backend manually recovered via retag-and-restart fallback." https://ntfy.sh/pratik-gateway-alerts
 ```
 
 ## Backup schedule and retention
