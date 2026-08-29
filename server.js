@@ -483,6 +483,8 @@ const server = http.createServer(async (req, res) => {
     // until the next service restart. machine_id is deliberately NOT
     // editable: it's auto-generated and the caches key off it.
     if (req.url.startsWith('/api/machine-topics/') && req.method === 'PUT') {
+        const admin = await auth.requireAdmin(req, res, dbClient);
+        if (!admin) return;
         try {
             const machineId = decodeURIComponent(req.url.split('/api/machine-topics/')[1].split('?')[0]);
             const body = await readJsonBody(req);
@@ -548,6 +550,8 @@ const server = http.createServer(async (req, res) => {
     // MQTTX-style: newest first, each with its own arrival timestamp.
     // Reads from RAM only, never the DB.
     if (req.url.startsWith('/api/machine-history/') && req.method === 'GET') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         const machineId = decodeURIComponent(req.url.split('/api/machine-history/')[1].split('?')[0]);
         const history = getMachineHistory(machineId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -559,6 +563,8 @@ const server = http.createServer(async (req, res) => {
         }));
     }
     if (req.url.startsWith('/api/machine-topics/') && req.method === 'DELETE') {
+        const admin = await auth.requireAdmin(req, res, dbClient);
+        if (!admin) return;
         try {
             const machineId = decodeURIComponent(req.url.split('/api/machine-topics/')[1]);
             const result = await dbClient.query(
@@ -589,11 +595,15 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify(getLatestMachineData('venus1')));
     }
     if (req.url.startsWith('/api/machine-status/') && req.url !== '/api/machine-status/demo') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         const machineId = decodeURIComponent(req.url.split('/api/machine-status/')[1].split('?')[0]);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getLatestMachineData(machineId)));
     }
     if (req.url.startsWith('/api/production/current')) {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         try {
             const urlObj = new URL(req.url, 'http://localhost');
             const machineId = urlObj.searchParams.get('machineId') || 'venus';
@@ -620,6 +630,8 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url.startsWith('/api/production/history')) {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         try {
             const urlObj = new URL(req.url, 'http://localhost');
             const machineId = urlObj.searchParams.get('machineId') || 'venus';
