@@ -19,9 +19,8 @@ jobs:
             set -e
             cd ~/industrial-backend
             TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-            PGPASSWORD=$(grep DB_PASSWORD .env | cut -d= -f2) pg_dump -h localhost -U pratik -d factory_data -Fc -f /tmp/backup-$TIMESTAMP.dump
-            echo "backup-$TIMESTAMP.dump" > /tmp/latest-backup-name.txt
-            ls -la /tmp/backup-$TIMESTAMP.dump
+            PGPASSWORD=$(grep DB_PASSWORD .env | cut -d= -f2) pg_dump -h localhost -U pratik -d factory_data -Fc -f /tmp/db-backup-current.dump
+            ls -la /tmp/db-backup-current.dump
 
       - name: Download backup from Oracle
         uses: appleboy/scp-action@v0.1.7
@@ -29,9 +28,9 @@ jobs:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          source: "/tmp/backup-*.dump"
+          source: "/tmp/db-backup-current.dump"
           target: "./downloaded-backup/"
-          strip_components: 1
+          strip_components: 2
 
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
@@ -47,7 +46,7 @@ jobs:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
-          script: rm -f /tmp/backup-*.dump
+          script: rm -f /tmp/db-backup-current.dump
 
       - name: Notify success
         if: success()
