@@ -122,6 +122,14 @@ async function handleSetActive(req, res, dbClient, body) {
             return res.end(JSON.stringify({ error: `No such user: ${username}` }));
         }
         console.log(`${active ? 'enabled' : 'disabled'}: ${username} by ${admin.username}`);
+        await auditLogger.logAuditEvent(dbClient, {
+            actorId: admin.username,
+            actorIp: req.socket.remoteAddress,
+            action: active ? 'ENABLE_USER' : 'DISABLE_USER',
+            targetType: 'user',
+            targetId: username,
+            details: {},
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, username, active }));
     } catch (err) {
@@ -153,6 +161,14 @@ async function handleAddUser(req, res, dbClient, body) {
             [username, hash]
         );
         console.log(`user created: ${username} by ${admin.username}`);
+        await auditLogger.logAuditEvent(dbClient, {
+            actorId: admin.username,
+            actorIp: req.socket.remoteAddress,
+            action: 'ADD_USER',
+            targetType: 'user',
+            targetId: username,
+            details: {},
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, username, temporaryPassword: temp }));
     } catch (err) {
@@ -193,6 +209,14 @@ async function handleSetAdmin(req, res, dbClient, body) {
             return res.end(JSON.stringify({ error: `No such user: ${username}` }));
         }
         console.log(`admin ${grant ? 'granted' : 'revoked'}: ${username} by ${admin.username}`);
+        await auditLogger.logAuditEvent(dbClient, {
+            actorId: admin.username,
+            actorIp: req.socket.remoteAddress,
+            action: grant ? 'GRANT_ADMIN' : 'REVOKE_ADMIN',
+            targetType: 'user',
+            targetId: username,
+            details: {},
+        });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, username, admin: grant }));
     } catch (err) {
