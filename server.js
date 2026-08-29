@@ -331,6 +331,8 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url === '/api/machine-status') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const machineStatus = {
             machineId: "Straightener_D120",
@@ -353,6 +355,8 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ...machineStatus, timestamp: new Date() }));
     }
     if (req.url === '/api/vpn/sites') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         try {
             const liveClients = await parseAllVpnStatus();
             const liveByName = {};
@@ -412,6 +416,8 @@ const server = http.createServer(async (req, res) => {
     // redeploy needed to add a new gateway, matches the same
     // philosophy as the auto-detecting VPN Fleet.
     if (req.url === '/api/machine-topics' && req.method === 'GET') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         try {
             const result = await dbClient.query(
                 'SELECT id, machine_id, display_name, mqtt_topic, vpn_gateway_name FROM machine_topics ORDER BY display_name'
@@ -424,6 +430,8 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url === '/api/machine-topics' && req.method === 'POST') {
+        const admin = await auth.requireAdmin(req, res, dbClient);
+        if (!admin) return;
         try {
             const body = await readJsonBody(req);
             const { display_name, mqtt_topic, vpn_gateway_name } = body;
@@ -582,6 +590,8 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url === '/api/sap/sync-status' && req.method === 'GET') {
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         if (!lastSapReport) {
             return res.end(JSON.stringify({ status: 'no_reports_yet' }));
@@ -591,6 +601,8 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/machine-status/demo') {
         // Alias kept for backward compatibility with the current
         // frontend, which still hardcodes this path for Venus.
+        const user = await auth.requireAuth(req, res, dbClient);
+        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getLatestMachineData('venus1')));
     }
