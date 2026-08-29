@@ -331,8 +331,6 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url === '/api/machine-status') {
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const machineStatus = {
             machineId: "Straightener_D120",
@@ -355,8 +353,6 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ...machineStatus, timestamp: new Date() }));
     }
     if (req.url === '/api/vpn/sites') {
-        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
-        if (!user) return;
         try {
             const liveClients = await parseAllVpnStatus();
             const liveByName = {};
@@ -416,8 +412,6 @@ const server = http.createServer(async (req, res) => {
     // redeploy needed to add a new gateway, matches the same
     // philosophy as the auto-detecting VPN Fleet.
     if (req.url === '/api/machine-topics' && req.method === 'GET') {
-        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
-        if (!user) return;
         try {
             const result = await dbClient.query(
                 'SELECT id, machine_id, display_name, mqtt_topic, vpn_gateway_name FROM machine_topics ORDER BY display_name'
@@ -558,8 +552,6 @@ const server = http.createServer(async (req, res) => {
     // MQTTX-style: newest first, each with its own arrival timestamp.
     // Reads from RAM only, never the DB.
     if (req.url.startsWith('/api/machine-history/') && req.method === 'GET') {
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         const machineId = decodeURIComponent(req.url.split('/api/machine-history/')[1].split('?')[0]);
         const history = getMachineHistory(machineId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -590,8 +582,6 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url === '/api/sap/sync-status' && req.method === 'GET') {
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         if (!lastSapReport) {
             return res.end(JSON.stringify({ status: 'no_reports_yet' }));
@@ -601,21 +591,15 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/machine-status/demo') {
         // Alias kept for backward compatibility with the current
         // frontend, which still hardcodes this path for Venus.
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getLatestMachineData('venus1')));
     }
     if (req.url.startsWith('/api/machine-status/') && req.url !== '/api/machine-status/demo') {
-        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
-        if (!user) return;
         const machineId = decodeURIComponent(req.url.split('/api/machine-status/')[1].split('?')[0]);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getLatestMachineData(machineId)));
     }
     if (req.url.startsWith('/api/production/current')) {
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         try {
             const urlObj = new URL(req.url, 'http://localhost');
             const machineId = urlObj.searchParams.get('machineId') || 'venus';
@@ -642,8 +626,6 @@ const server = http.createServer(async (req, res) => {
         }
     }
     if (req.url.startsWith('/api/production/history')) {
-        const user = await auth.requireAuth(req, res, dbClient);
-        if (!user) return;
         try {
             const urlObj = new URL(req.url, 'http://localhost');
             const machineId = urlObj.searchParams.get('machineId') || 'venus';
