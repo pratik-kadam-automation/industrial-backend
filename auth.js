@@ -437,6 +437,29 @@ async function handleChangePassword(req, res, pool, body) {
     }
 }
 
+const WATCHDOG_TOKEN = process.env.WATCHDOG_TOKEN || '';
+
+/*
+ * Same idea as SAP_REPORT_TOKEN -- a shared secret for one specific
+ * unattended script (gateway_watchdog.py, polls once a minute) that
+ * has no way to hold a login session. Deliberately NOT in REQUIRED_ENV:
+ * if this is ever unset, the check below always falls through to a
+ * real session requirement rather than silently granting access --
+ * unlike SAP_REPORT_TOKEN, an unset value here has a safe failure mode,
+ * not a dangerous one.
+ *
+ * Scope this narrowly. Only wire this into read-only GET routes the
+ * watchdog actually calls -- never anything that mutates state.
+ */
+async function requireAuthOrWatchdogToken(req, res, dbClient) {
+    const header = req.headers.authorization || '';
+    const match = header.match(/^Bearer\s+(.+)$/);
+    if (WATCHDOG_TOKEN && match && match[1] === WATCHDOG_TOKEN) {
+        return { username: 'watchdog' };
+    }
+    return await requireAuth(req, res, dbClient);
+}
+
 module.exports = {
     hashPassword,
     verifyPassword,
@@ -445,6 +468,7 @@ module.exports = {
     getUser,
     requireAuth,
     requireAdmin,
+    requireAuthOrWatchdogToken,
     handleLogin,
     handleLogout,
     handleWhoami,
