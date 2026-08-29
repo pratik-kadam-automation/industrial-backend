@@ -5,6 +5,22 @@ on: [push]
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: pratik
+          POSTGRES_PASSWORD: ci_only_throwaway_password
+          POSTGRES_DB: factory_data_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,3 +43,12 @@ jobs:
             echo "Found what looks like a hardcoded secret. Failing build."
             exit 1
           fi
+
+      - name: Run automated tests
+        run: npm test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: pratik
+          DB_PASSWORD: ci_only_throwaway_password
+          DB_NAME: factory_data_test
