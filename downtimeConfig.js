@@ -94,7 +94,7 @@ async function handleSave(req, res, dbClient, body, auth) {
  * admins can change it.
  */
 async function handleGet(req, res, dbClient, gatewayId, auth) {
-    const user = auth.requireAuth(req, res);
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     await ensureTable(dbClient);
@@ -115,7 +115,7 @@ async function handleGet(req, res, dbClient, gatewayId, auth) {
 
 /** GET /api/admin/downtime-config — list every configured gateway. */
 async function handleList(req, res, dbClient, auth) {
-    const user = auth.requireAuth(req, res);
+    const user = await auth.requireAuth(req, res, dbClient);
     if (!user) return;
 
     await ensureTable(dbClient);
