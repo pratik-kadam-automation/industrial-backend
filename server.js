@@ -355,7 +355,7 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ...machineStatus, timestamp: new Date() }));
     }
     if (req.url === '/api/vpn/sites') {
-        const user = await auth.requireAuth(req, res, dbClient);
+        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
         if (!user) return;
         try {
             const liveClients = await parseAllVpnStatus();
@@ -416,7 +416,7 @@ const server = http.createServer(async (req, res) => {
     // redeploy needed to add a new gateway, matches the same
     // philosophy as the auto-detecting VPN Fleet.
     if (req.url === '/api/machine-topics' && req.method === 'GET') {
-        const user = await auth.requireAuth(req, res, dbClient);
+        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
         if (!user) return;
         try {
             const result = await dbClient.query(
@@ -607,7 +607,7 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify(getLatestMachineData('venus1')));
     }
     if (req.url.startsWith('/api/machine-status/') && req.url !== '/api/machine-status/demo') {
-        const user = await auth.requireAuth(req, res, dbClient);
+        const user = await auth.requireAuthOrWatchdogToken(req, res, dbClient);
         if (!user) return;
         const machineId = decodeURIComponent(req.url.split('/api/machine-status/')[1].split('?')[0]);
         res.writeHead(200, { 'Content-Type': 'application/json' });
