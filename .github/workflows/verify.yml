@@ -52,3 +52,10 @@ jobs:
           DB_USER: pratik
           DB_PASSWORD: ci_only_throwaway_password
           DB_NAME: factory_data_test
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          curl -H "Title: Verify FAILED" -H "Priority: high" \
+            -d "industrial-backend Verify failed on main (${{ github.sha }}) - syntax, secret, or test check didn't pass. This commit is already on main; check the Actions tab." \
+            https://ntfy.sh/pratik-gateway-alerts
