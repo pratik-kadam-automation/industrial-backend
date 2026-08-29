@@ -39,6 +39,25 @@ const ALLOWLIST = [
     '/api/whoami',           // intentionally public -- this IS the auth-status check, verified 2026-08-30
     '/api/sap/report',       // guarded via SAP_REPORT_TOKEN bearer token, not session auth, verified 2026-08-30
     '/api/change-password',  // guarded -- password query itself requires is_active = true, verified 2026-08-30
+
+    // Intentionally public -- the VPN's own mTLS layer is the real access
+    // boundary for reading fleet/status data, not app-level session auth.
+    // App login only gates mutations. Reverted from requireAuth 2026-08-30
+    // after this broke the public Dashboard overview -- see WQ-12 in
+    // BACKLOG.md for the full story.
+    '/api/vpn/sites',
+    '/api/sap/sync-status',
+    '/api/machine-status',
+    '/api/machine-status/demo',
+    '/api/machine-status/',       // startsWith route, per-machine
+    '/api/machine-history/',      // startsWith route, per-machine
+    '/api/production/current',
+    '/api/production/history',
+    '/api/machine-topics',        // GET is public (list); POST still requires
+                                  // admin (auth.requireAdmin, verified 2026-08-30
+                                  // via live test) -- same URL, checker can't
+                                  // distinguish by method, POST's real guard
+                                  // confirmed separately by hand.
 ];
 
 // Matches both exact-match routes (req.url === '...') and prefix-match
