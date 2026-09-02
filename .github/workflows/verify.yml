@@ -44,6 +44,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check auth coverage
+        run: node scripts/check-auth-coverage.js
+
       - name: Run automated tests
         run: npm test
         env:
